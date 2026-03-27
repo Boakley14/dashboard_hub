@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — 10 Federal Dashboard Hub</title>
+  <link rel="stylesheet" href="assets/css/settings.css">
+  <link rel="icon" type="image/png" href="assets/img/10fed-favicon.png">
+</head>
+<body>
+
+  <!-- ====================================================
+       NAV BAR
+       ===================================================== -->
+  <header class="nav" role="banner">
+    <a class="nav-back" href="index.html" aria-label="Back to Dashboard Hub">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Hub
+    </a>
+
+    <div class="nav-divider" aria-hidden="true"></div>
+    <a class="nav-logo" href="index.html" aria-label="10 Federal Dashboard Hub">
+      <img src="assets/img/10fed-logo.png" alt="10 Federal">
+    </a>
+    <div class="nav-divider" aria-hidden="true"></div>
+
+    <span class="nav-page-title">Settings</span>
+
+    <div class="nav-status" id="nav-status" aria-live="polite">
+      <span class="status-dot disconnected" id="status-dot"></span>
+      <span id="status-label">Not connected</span>
+    </div>
+  </header>
+
+  <!-- ====================================================
+       SETTINGS BODY
+       ===================================================== -->
+  <main class="settings-body">
+
+    <h1 class="settings-heading">Settings</h1>
+    <p class="settings-subheading">
+      Connect to GitHub to publish dashboards directly from this page — no git CLI needed.
+    </p>
+
+    <!-- ================================================
+         CARD 1: GITHUB CONNECTION
+         ================================================ -->
+    <section class="settings-card" id="card-connection">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="card-icon">
+            <!-- GitHub icon -->
+            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="card-title">GitHub Connection</div>
+            <div class="card-subtitle">Your token is stored locally in your browser only</div>
+          </div>
+        </div>
+        <button class="btn-danger" id="btn-disconnect" hidden>Disconnect</button>
+      </div>
+
+      <div class="card-body-inner">
+
+        <!-- Connection status banner -->
+        <div class="connection-status disconnected" id="connection-status">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span id="connection-status-text">Not connected — enter your GitHub token below to publish dashboards.</span>
+        </div>
+
+        <!-- PAT form -->
+        <div id="pat-form">
+          <div class="form-group">
+            <label for="input-pat">
+              GitHub Personal Access Token <span class="required">*</span>
+              <span class="hint">
+                — <a href="https://github.com/settings/tokens/new?scopes=repo&description=10Fed+Dashboard+Hub" target="_blank" rel="noopener">Create one here ↗</a>
+                &nbsp;(needs <strong>repo</strong> scope)
+              </span>
+            </label>
+            <input
+              type="password"
+              id="input-pat"
+              placeholder="ghp_••••••••••••••••••••••••••••••••••••••"
+              autocomplete="off"
+              spellcheck="false"
+            >
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-primary" id="btn-connect" type="button">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              Verify &amp; Connect
+            </button>
+          </div>
+
+          <div class="security-note">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Your token is stored only in this browser's localStorage and is never sent anywhere except
+            directly to <strong>api.github.com</strong>. It is never logged or shared.
+            Use a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained token</a>
+            scoped to only the <code>dashboard_hub</code> repo for minimal permissions.
+          </div>
+        </div>
+
+      </div><!-- /card-body-inner -->
+    </section>
+
+    <!-- ================================================
+         CARD 2: PUBLISH NEW DASHBOARD
+         ================================================ -->
+    <section class="settings-card" id="card-publish">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="card-icon">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 16V4M8 8l4-4 4 4M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <div class="card-title">Publish New Dashboard</div>
+            <div class="card-subtitle">Upload an .html file and register it in the hub</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body-inner">
+
+        <!-- Locked overlay (shown when not connected) -->
+        <div id="publish-locked" class="alert alert-error" role="alert">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/>
+            <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          Connect your GitHub account above to publish dashboards.
+        </div>
+
+        <!-- Alert area (errors / success) -->
+        <div id="publish-alert" hidden role="alert" aria-live="polite"></div>
+
+        <!-- Progress steps (shown during publishing) -->
+        <div id="publish-progress" hidden>
+          <div class="publish-step" id="step-upload" data-label="Uploading .html file…">
+            <div class="step-icon"></div>
+            <span>Uploading .html file…</span>
+          </div>
+          <div class="publish-step" id="step-registry" data-label="Updating dashboard registry…">
+            <div class="step-icon"></div>
+            <span>Updating dashboard registry…</span>
+          </div>
+        </div>
+
+        <!-- Publish form -->
+        <form id="publish-form" novalidate>
+
+          <!-- File upload -->
+          <div class="form-group">
+            <label>
+              Dashboard File <span class="required">*</span>
+              <span class="hint">— .html only</span>
+            </label>
+            <div class="file-drop-zone" id="file-drop-zone">
+              <input
+                type="file"
+                id="input-file"
+                accept=".html"
+                aria-label="Select dashboard HTML file"
+              >
+              <div class="file-drop-icon" id="file-drop-icon">
+                <svg width="32" height="32" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  <path d="M14 2v6h6M12 12v6M9 15l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="file-drop-label" id="file-drop-label">Click to select or drag &amp; drop</div>
+              <div class="file-drop-hint" id="file-drop-hint">Accepts .html files</div>
+            </div>
+          </div>
+
+          <hr class="form-divider">
+
+          <!-- Title + auto-generated ID -->
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0">
+              <label for="input-title">Title <span class="required">*</span></label>
+              <input type="text" id="input-title" placeholder="Q1 2026 Sales Report" maxlength="80">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label for="input-id">
+                Dashboard ID <span class="required">*</span>
+                <span class="hint">— auto-generated, editable</span>
+              </label>
+              <input type="text" id="input-id" placeholder="q1-2026-sales-report" maxlength="60" spellcheck="false">
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="form-group">
+            <label for="input-description">Description <span class="required">*</span></label>
+            <textarea id="input-description" placeholder="One or two sentences describing what this dashboard shows." rows="2"></textarea>
+          </div>
+
+          <!-- Category + Author -->
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0">
+              <label for="input-category">
+                Category <span class="required">*</span>
+                <span class="hint">— e.g. Sales, Finance, Operations</span>
+              </label>
+              <input type="text" id="input-category" placeholder="Sales" list="category-suggestions" maxlength="40">
+              <datalist id="category-suggestions"></datalist>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label for="input-author">Author</label>
+              <input type="text" id="input-author" placeholder="Brian Oakley" maxlength="60">
+            </div>
+          </div>
+
+          <!-- Tags + Date -->
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0">
+              <label for="input-tags">
+                Tags
+                <span class="hint">— comma separated</span>
+              </label>
+              <input type="text" id="input-tags" placeholder="sales, monthly, 2026">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label for="input-date">Date Added</label>
+              <input type="date" id="input-date">
+            </div>
+          </div>
+
+          <!-- Open in new tab toggle -->
+          <div class="toggle-group">
+            <div class="toggle-info">
+              <div class="toggle-title">Open in new tab</div>
+              <div class="toggle-desc">
+                Enable if this dashboard doesn't work inside the embedded viewer.
+                Most AI-generated dashboards work fine embedded.
+              </div>
+            </div>
+            <label class="toggle-switch" aria-label="Open in new tab">
+              <input type="checkbox" id="input-newtab">
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+
+          <hr class="form-divider">
+
+          <div class="form-actions">
+            <button class="btn-primary" type="submit" id="btn-publish" disabled>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 16V4M8 8l4-4 4 4M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Publish Dashboard
+            </button>
+            <button class="btn-secondary" type="button" id="btn-reset">Reset Form</button>
+          </div>
+
+        </form>
+
+      </div><!-- /card-body-inner -->
+    </section>
+
+  </main>
+
+  <script type="module" src="src/settings.js"></script>
+</body>
+</html>
