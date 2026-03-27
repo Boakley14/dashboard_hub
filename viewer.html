@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Viewer — 10 Federal</title>
+  <link rel="stylesheet" href="assets/css/viewer.css">
+  <link rel="icon" type="image/png" href="assets/img/10fed-favicon.png">
+</head>
+<body>
+
+  <!-- ====================================================
+       VIEWER TOP BAR
+       ===================================================== -->
+  <header class="viewer-bar" role="banner">
+
+    <!-- Back to hub -->
+    <a class="viewer-back" href="index.html" aria-label="Back to Dashboard Hub">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Hub
+    </a>
+
+    <div class="viewer-divider" aria-hidden="true"></div>
+
+    <!-- Logo -->
+    <img class="viewer-logo" src="assets/img/10fed-logo.png" alt="10 Federal">
+
+    <div class="viewer-divider" aria-hidden="true"></div>
+
+    <!-- Dashboard title (filled by viewer.js) -->
+    <h1 id="viewer-title" class="viewer-title">Loading…</h1>
+
+    <!-- Category label (filled by viewer.js) -->
+    <span id="viewer-category" class="viewer-category"></span>
+
+    <!-- Open in new tab button (filled by viewer.js) -->
+    <a
+      id="btn-newtab"
+      class="btn-newtab"
+      href="#"
+      target="_blank"
+      rel="noopener"
+      aria-label="Open dashboard in a new tab"
+      hidden
+    >
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6m0 0v6m0-6L10 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Open in New Tab
+    </a>
+
+  </header>
+
+  <!-- ====================================================
+       LOADING SPINNER
+       ===================================================== -->
+  <div id="spinner" class="viewer-spinner" role="status" aria-label="Loading dashboard">
+    <div class="spinner-ring"></div>
+  </div>
+
+  <!-- ====================================================
+       DASHBOARD IFRAME
+       ===================================================== -->
+  <iframe
+    id="dashboard-iframe"
+    class="viewer-frame"
+    title="Dashboard"
+    hidden
+  ></iframe>
+
+  <!-- ====================================================
+       IFRAME FALLBACK (shown on load error)
+       ===================================================== -->
+  <div id="iframe-fallback" class="iframe-fallback" hidden></div>
+
+  <!-- ====================================================
+       DASHBOARD NOT FOUND ERROR
+       ===================================================== -->
+  <div id="viewer-error" class="viewer-error" hidden>
+    <svg width="48" height="48" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" stroke="#C52127" stroke-width="2"/>
+      <path d="M12 8v4M12 16h.01" stroke="#C52127" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <h2>Dashboard Not Found</h2>
+    <p>The dashboard you're looking for doesn't exist in the registry.</p>
+    <a class="btn-primary" href="index.html">← Back to Hub</a>
+  </div>
+
+  <script type="module" src="src/viewer.js"></script>
+</body>
+</html>

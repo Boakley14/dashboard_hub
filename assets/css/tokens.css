@@ -1,0 +1,88 @@
+/* ============================================================
+   10 Federal — Brand Design Tokens
+   Source of truth for all colors, typography, and spacing.
+   All other CSS files import this file and use these vars only.
+   ============================================================ */
+
+:root {
+  /* --- Color Palette --- */
+  --red-primary:  #C52127;
+  --red-deep:     #980000;
+  --red-bright:   #F14F4D;
+  --black:        #000000;
+  --gray-dark:    #2E2E2E;
+  --gray-mid:     #6B6B6B;
+  --gray-light:   #F5F5F5;
+  --gray-border:  #E0E0E0;
+  --white:        #FFFFFF;
+
+  /* --- Semantic Aliases --- */
+  --color-primary:        var(--red-primary);
+  --color-primary-hover:  var(--red-deep);
+  --color-accent:         var(--red-bright);
+  --color-hero-bg:        var(--black);
+  --color-hero-text:      var(--white);
+  --color-surface:        var(--white);
+  --color-surface-alt:    var(--gray-light);
+  --color-border:         var(--gray-border);
+  --color-text:           var(--gray-dark);
+  --color-text-heading:   var(--black);
+  --color-text-muted:     var(--gray-mid);
+  --color-text-on-dark:   var(--white);
+  --color-text-on-red:    var(--white);
+  --color-link:           var(--red-primary);
+
+  /* --- Typography --- */
+  --font-family:    'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --font-size-xs:   0.75rem;   /* 12px */
+  --font-size-sm:   0.875rem;  /* 14px */
+  --font-size-base: 1rem;      /* 16px */
+  --font-size-lg:   1.125rem;  /* 18px */
+  --font-size-xl:   1.25rem;   /* 20px */
+  --font-size-2xl:  1.5rem;    /* 24px */
+  --font-size-3xl:  1.875rem;  /* 30px */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold:   700;
+  --line-height-tight:  1.25;
+  --line-height-base:   1.5;
+
+  /* --- Spacing (8px base grid) --- */
+  --space-1:  0.25rem;  /* 4px  */
+  --space-2:  0.5rem;   /* 8px  */
+  --space-3:  0.75rem;  /* 12px */
+  --space-4:  1rem;     /* 16px */
+  --space-5:  1.25rem;  /* 20px */
+  --space-6:  1.5rem;   /* 24px */
+  --space-8:  2rem;     /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+
+  /* --- Layout --- */
+  --nav-height:       56px;
+  --viewer-bar-height: 52px;
+  --max-width:        1280px;
+  --card-min-width:   280px;
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+
+  /* --- Elevation / Shadow --- */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.10), 0 4px 6px rgba(0,0,0,0.05);
+
+  /* --- Transitions --- */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+
+  /* --- Category Color Map (used by cards.js for placeholder thumbnails) ---
+     Keys map to CSS classes: .cat-sales, .cat-operations, etc.
+     Additional categories get --cat-default.                              --- */
+  --cat-default:    #C52127;
+  --cat-sales:      #C52127;
+  --cat-operations: #2E2E2E;
+  --cat-finance:    #980000;
+  --cat-marketing:  #F14F4D;
+  --cat-hr:         #6B6B6B;
+}

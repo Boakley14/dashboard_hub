@@ -1,0 +1,26 @@
+[
+  {
+    "id": "sample-sales-overview",
+    "title": "Sample — Sales Overview",
+    "description": "A placeholder card showing how a Sales dashboard will appear in the hub. Replace this with a real .html file.",
+    "category": "Sales",
+    "tags": ["sales", "example", "placeholder"],
+    "author": "10 Federal Team",
+    "dateAdded": "2026-03-27",
+    "filename": "sample-sales-overview.html",
+    "thumbnail": "",
+    "openInNewTab": false
+  },
+  {
+    "id": "sample-operations",
+    "title": "Sample — Operations Tracker",
+    "description": "A placeholder card showing how an Operations dashboard will appear in the hub. Replace this with a real .html file.",
+    "category": "Operations",
+    "tags": ["operations", "example", "placeholder"],
+    "author": "10 Federal Team",
+    "dateAdded": "2026-03-27",
+    "filename": "sample-operations.html",
+    "thumbnail": "",
+    "openInNewTab": false
+  }
+]

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>10 Federal — Dashboard Hub</title>
+  <meta name="description" content="10 Federal internal dashboard portal — browse, search, and open team dashboards.">
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="icon" type="image/png" href="assets/img/10fed-favicon.png">
+</head>
+<body>
+
+  <!-- ====================================================
+       TOP NAVIGATION BAR
+       ===================================================== -->
+  <header class="nav" role="banner">
+    <a class="nav-logo" href="index.html" aria-label="10 Federal Dashboard Hub home">
+      <img src="assets/img/10fed-logo.png" alt="10 Federal logo">
+      <span class="nav-logo-text">Dashboard Hub</span>
+    </a>
+
+    <div class="nav-search-wrap" role="search">
+      <svg class="nav-search-icon" width="16" height="16" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+        <path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <input
+        id="search-input"
+        class="nav-search"
+        type="search"
+        placeholder="Search dashboards…"
+        aria-label="Search dashboards"
+        autocomplete="off"
+        spellcheck="false"
+      >
+    </div>
+
+    <span id="result-count" class="nav-count" aria-live="polite"></span>
+  </header>
+
+  <!-- ====================================================
+       MAIN CONTENT
+       ===================================================== -->
+  <main class="page-body" id="main">
+
+    <!-- Category filter pills -->
+    <nav class="filter-bar" id="filter-bar" aria-label="Filter by category">
+      <span class="filter-label">Filter:</span>
+      <!-- Pills injected by app.js -->
+    </nav>
+
+    <!-- Loading spinner -->
+    <div id="spinner" class="spinner" role="status" aria-label="Loading dashboards">
+      <div class="spinner-ring"></div>
+    </div>
+
+    <!-- Card grid -->
+    <section
+      id="card-grid"
+      class="card-grid"
+      aria-label="Dashboard cards"
+      hidden
+    ></section>
+
+    <!-- Empty state -->
+    <p id="empty-state" class="empty-state" hidden aria-live="polite">
+      No dashboards match your search.
+    </p>
+
+  </main>
+
+  <footer class="page-footer">
+    &copy; 10 Federal &mdash; Internal Use Only
+  </footer>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
