@@ -27,7 +27,6 @@
     <div class="nav-divider" aria-hidden="true"></div>
 
     <span class="nav-page-title">Settings</span>
-
   </header>
 
   <!-- ====================================================
@@ -36,179 +35,238 @@
   <main class="settings-body">
 
     <h1 class="settings-heading">Settings</h1>
-    <p class="settings-subheading">
-      Upload an .html dashboard and publish it to the hub instantly.
-    </p>
+    <p class="settings-subheading">Customize your hub experience, publish dashboards, and manage your content.</p>
+
+    <!-- Tab navigation -->
+    <nav class="settings-tabs" aria-label="Settings sections">
+      <button class="settings-tab active" type="button" data-tab="appearance">
+        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Appearance
+      </button>
+      <button class="settings-tab" type="button" data-tab="publish">
+        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 16V4M8 8l4-4 4 4M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Publish
+      </button>
+      <button class="settings-tab" type="button" data-tab="manage">
+        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 6h16M4 12h16M4 18h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Manage Dashboards
+      </button>
+    </nav>
 
     <!-- ================================================
-         PUBLISH NEW DASHBOARD
+         TAB: APPEARANCE
          ================================================ -->
-    <section class="settings-card" id="card-publish">
-      <div class="card-header">
-        <div class="card-header-left">
-          <div class="card-icon">
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 16V4M8 8l4-4 4 4M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <div>
-            <div class="card-title">Publish New Dashboard</div>
-            <div class="card-subtitle">Upload an .html file and register it in the hub</div>
-          </div>
-        </div>
-      </div>
+    <div id="tab-appearance" class="tab-panel">
 
-      <div class="card-body-inner">
-
-        <!-- Alert area (errors / success) -->
-        <div id="publish-alert" hidden role="alert" aria-live="polite"></div>
-
-        <!-- Progress (shown during publishing) -->
-        <div id="publish-progress" hidden>
-          <div class="publish-step" id="step-upload">
-            <div class="step-icon"></div>
-            <span>Publishing dashboard…</span>
+      <section class="settings-card">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-icon">
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <div class="card-title">Appearance</div>
+              <div class="card-subtitle">Theme and color preferences</div>
+            </div>
           </div>
         </div>
 
-        <!-- Publish form -->
-        <form id="publish-form" novalidate>
+        <div class="card-body-inner">
 
-          <!-- File upload -->
-          <div class="form-group">
-            <label>
-              Dashboard File <span class="required">*</span>
-              <span class="hint">— .html only</span>
-            </label>
-            <div class="file-drop-zone" id="file-drop-zone">
-              <input
-                type="file"
-                id="input-file"
-                accept=".html"
-                aria-label="Select dashboard HTML file"
-              >
-              <div class="file-drop-icon" id="file-drop-icon">
-                <svg width="32" height="32" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                  <path d="M14 2v6h6M12 12v6M9 15l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-              <div class="file-drop-label" id="file-drop-label">Click to select or drag &amp; drop</div>
-              <div class="file-drop-hint" id="file-drop-hint">Accepts .html files</div>
-            </div>
-          </div>
-
-          <hr class="form-divider">
-
-          <!-- Title + auto-generated ID -->
-          <div class="form-row">
-            <div class="form-group" style="margin-bottom:0">
-              <label for="input-title">Title <span class="required">*</span></label>
-              <input type="text" id="input-title" placeholder="Q1 2026 Sales Report" maxlength="80">
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-              <label for="input-id">
-                Dashboard ID <span class="required">*</span>
-                <span class="hint">— auto-generated, editable</span>
-              </label>
-              <input type="text" id="input-id" placeholder="q1-2026-sales-report" maxlength="60" spellcheck="false">
-            </div>
-          </div>
-
-          <!-- Description -->
-          <div class="form-group">
-            <label for="input-description">Description <span class="required">*</span></label>
-            <textarea id="input-description" placeholder="One or two sentences describing what this dashboard shows." rows="2"></textarea>
-          </div>
-
-          <!-- Category + Author -->
-          <div class="form-row">
-            <div class="form-group" style="margin-bottom:0">
-              <label for="input-category">
-                Category <span class="required">*</span>
-                <span class="hint">— e.g. Sales, Finance, Operations</span>
-              </label>
-              <input type="text" id="input-category" placeholder="Sales" list="category-suggestions" maxlength="40">
-              <datalist id="category-suggestions"></datalist>
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-              <label for="input-author">Author</label>
-              <input type="text" id="input-author" placeholder="Brian Oakley" maxlength="60">
-            </div>
-          </div>
-
-          <!-- Tags + Date -->
-          <div class="form-row">
-            <div class="form-group" style="margin-bottom:0">
-              <label for="input-tags">
-                Tags
-                <span class="hint">— comma separated</span>
-              </label>
-              <input type="text" id="input-tags" placeholder="sales, monthly, 2026">
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-              <label for="input-date">Date Added</label>
-              <input type="date" id="input-date">
-            </div>
-          </div>
-
-          <!-- Open in new tab toggle -->
+          <!-- Dark / Light mode toggle -->
           <div class="toggle-group">
             <div class="toggle-info">
-              <div class="toggle-title">Open in new tab</div>
-              <div class="toggle-desc">
-                Enable if this dashboard doesn't work inside the embedded viewer.
-                Most AI-generated dashboards work fine embedded.
-              </div>
+              <div class="toggle-title">Light Mode</div>
+              <div class="toggle-desc">Switch between dark (default) and light interface</div>
             </div>
-            <label class="toggle-switch" aria-label="Open in new tab">
-              <input type="checkbox" id="input-newtab">
+            <label class="toggle-switch" aria-label="Enable light mode">
+              <input type="checkbox" id="theme-toggle">
               <span class="toggle-track"></span>
             </label>
           </div>
 
           <hr class="form-divider">
 
-          <div class="form-actions">
-            <button class="btn-primary" type="submit" id="btn-publish">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 16V4M8 8l4-4 4 4M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              Publish Dashboard
-            </button>
-            <button class="btn-secondary" type="button" id="btn-reset">Reset Form</button>
+          <!-- Nav bar color -->
+          <div class="form-group">
+            <label class="form-label">Navigation Bar Color</label>
+            <p class="form-hint">Choose a background color for the top navigation bar across all pages</p>
+            <div class="nav-color-swatches" id="nav-color-swatches">
+              <!-- Rendered by settings.js -->
+            </div>
           </div>
 
-        </form>
+        </div>
+      </section>
 
-      </div><!-- /card-body-inner -->
-    </section>
+    </div><!-- /tab-appearance -->
 
     <!-- ================================================
-         MANAGE DASHBOARDS
+         TAB: PUBLISH
          ================================================ -->
-    <section class="settings-card" id="card-manage">
-      <div class="card-header">
-        <div class="card-header-left">
-          <div class="card-icon">
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 6h16M4 12h16M4 18h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div>
-            <div class="card-title">Manage Dashboards</div>
-            <div class="card-subtitle">Delete published dashboards from the hub</div>
-          </div>
-        </div>
-      </div>
+    <div id="tab-publish" class="tab-panel" hidden>
 
-      <div class="card-body-inner">
-        <div id="manage-alert" hidden role="alert" aria-live="polite"></div>
-        <div id="manage-list">
-          <p style="color:var(--color-text-muted);font-size:var(--font-size-sm)">Loading dashboards…</p>
+      <section class="settings-card" id="card-publish">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-icon">
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 16V4M8 8l4-4 4 4M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div>
+              <div class="card-title">Publish New Dashboard</div>
+              <div class="card-subtitle">Upload an .html file and register it in the hub</div>
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
+
+        <div class="card-body-inner">
+
+          <div id="publish-alert" hidden role="alert" aria-live="polite"></div>
+
+          <div id="publish-progress" hidden>
+            <div class="publish-step" id="step-upload">
+              <div class="step-icon"></div>
+              <span>Publishing dashboard…</span>
+            </div>
+          </div>
+
+          <form id="publish-form" novalidate>
+
+            <div class="form-group">
+              <label>
+                Dashboard File <span class="required">*</span>
+                <span class="hint">— .html only</span>
+              </label>
+              <div class="file-drop-zone" id="file-drop-zone">
+                <input type="file" id="input-file" accept=".html" aria-label="Select dashboard HTML file">
+                <div class="file-drop-icon" id="file-drop-icon">
+                  <svg width="32" height="32" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M14 2v6h6M12 12v6M9 15l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+                <div class="file-drop-label" id="file-drop-label">Click to select or drag &amp; drop</div>
+                <div class="file-drop-hint" id="file-drop-hint">Accepts .html files</div>
+              </div>
+            </div>
+
+            <hr class="form-divider">
+
+            <div class="form-row">
+              <div class="form-group" style="margin-bottom:0">
+                <label for="input-title">Title <span class="required">*</span></label>
+                <input type="text" id="input-title" placeholder="Q1 2026 Sales Report" maxlength="80">
+              </div>
+              <div class="form-group" style="margin-bottom:0">
+                <label for="input-id">
+                  Dashboard ID <span class="required">*</span>
+                  <span class="hint">— auto-generated, editable</span>
+                </label>
+                <input type="text" id="input-id" placeholder="q1-2026-sales-report" maxlength="60" spellcheck="false">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="input-description">Description <span class="required">*</span></label>
+              <textarea id="input-description" placeholder="One or two sentences describing what this dashboard shows." rows="2"></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group" style="margin-bottom:0">
+                <label for="input-category">
+                  Category <span class="required">*</span>
+                  <span class="hint">— e.g. Sales, Finance, Operations</span>
+                </label>
+                <input type="text" id="input-category" placeholder="Sales" list="category-suggestions" maxlength="40">
+                <datalist id="category-suggestions"></datalist>
+              </div>
+              <div class="form-group" style="margin-bottom:0">
+                <label for="input-author">Author</label>
+                <input type="text" id="input-author" placeholder="Brian Oakley" maxlength="60">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group" style="margin-bottom:0">
+                <label for="input-tags">Tags <span class="hint">— comma separated</span></label>
+                <input type="text" id="input-tags" placeholder="sales, monthly, 2026">
+              </div>
+              <div class="form-group" style="margin-bottom:0">
+                <label for="input-date">Date Added</label>
+                <input type="date" id="input-date">
+              </div>
+            </div>
+
+            <div class="toggle-group">
+              <div class="toggle-info">
+                <div class="toggle-title">Open in new tab</div>
+                <div class="toggle-desc">Enable if this dashboard doesn't work inside the embedded viewer.</div>
+              </div>
+              <label class="toggle-switch" aria-label="Open in new tab">
+                <input type="checkbox" id="input-newtab">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+
+            <hr class="form-divider">
+
+            <div class="form-actions">
+              <button class="btn-primary" type="submit" id="btn-publish">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 16V4M8 8l4-4 4 4M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Publish Dashboard
+              </button>
+              <button class="btn-secondary" type="button" id="btn-reset">Reset Form</button>
+            </div>
+
+          </form>
+        </div>
+      </section>
+
+    </div><!-- /tab-publish -->
+
+    <!-- ================================================
+         TAB: MANAGE DASHBOARDS
+         ================================================ -->
+    <div id="tab-manage" class="tab-panel" hidden>
+
+      <section class="settings-card" id="card-manage">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-icon">
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 6h16M4 12h16M4 18h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <div class="card-title">Manage Dashboards</div>
+              <div class="card-subtitle">Delete published dashboards from the hub</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body-inner">
+          <div id="manage-alert" hidden role="alert" aria-live="polite"></div>
+          <div id="manage-list">
+            <p style="color:var(--color-text-muted);font-size:var(--font-size-sm)">Loading dashboards…</p>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /tab-manage -->
 
   </main>
 

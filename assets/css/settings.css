@@ -83,6 +83,93 @@ body {
 .status-dot.connected    { background: #22c55e; }
 .status-dot.disconnected { background: var(--red-bright); }
 
+/* ---- Tab navigation --------------------------------------- */
+.settings-tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 2px solid var(--color-border);
+  margin-bottom: var(--space-6);
+}
+
+.settings-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.settings-tab:hover { color: var(--color-text); }
+
+.settings-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.tab-panel { /* visible by default; JS toggles hidden attribute */ }
+
+/* ---- Nav-color swatch row --------------------------------- */
+.nav-color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.nav-color-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--border-radius-md);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  position: relative;
+}
+
+.nav-color-swatch:hover { transform: scale(1.1); }
+
+.nav-color-swatch.active {
+  border-color: var(--white);
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.nav-color-swatch .swatch-check {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+}
+
+.nav-color-swatch.active .swatch-check { display: flex; }
+
+/* form-label and form-hint used in Appearance tab */
+.form-label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  margin-bottom: var(--space-1);
+}
+
+.form-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+
 /* ---- Page layout ------------------------------------------ */
 .settings-body {
   margin-top: var(--nav-height);

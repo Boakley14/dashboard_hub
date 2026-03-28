@@ -87,6 +87,21 @@
   --cat-hr:         #6B6B6B;
 }
 
+/* ---- Light mode overrides -----------------------------------
+   Dark is the default; adding body.theme-light swaps surface and
+   text tokens. Brand colors (#C52127 etc.) stay unchanged in both
+   modes. Nav bar color is controlled separately via JS CSS variable
+   override (--color-hero-bg) so it can be customized independently. */
+body.theme-light {
+  --color-surface:      #FFFFFF;
+  --color-surface-alt:  #F5F5F5;
+  --color-border:       #E0E0E0;
+  --color-text:         #2E2E2E;
+  --color-text-heading: #000000;
+  --color-text-muted:   #6B6B6B;
+  --color-text-on-dark: #FFFFFF;
+}
+
 /* Global normalization: ensure the HTML `hidden` attribute always wins.
    Without this, explicit CSS display values (e.g. .spinner { display: flex })
    override the browser's default [hidden] { display: none }, causing

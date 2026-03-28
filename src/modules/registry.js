@@ -17,6 +17,9 @@ export class RegistryLoadError extends Error {
 
 let _cache = null;
 
+/** Clears the registry cache so the next loadRegistry() re-fetches from the API. */
+export function invalidateCache() { _cache = null; }
+
 /**
  * Loads the dashboard registry from /api/registry.
  * Returns cached result on subsequent calls.
