@@ -17,7 +17,7 @@ export function mountIframe(entry) {
   const iframe = document.getElementById('dashboard-iframe');
   if (!iframe) return;
 
-  const src = `./dashboards/${entry.filename}`;
+  const src = entry.blobUrl || `./dashboards/${entry.filename}`;
 
   // Reset state
   hideFallback();

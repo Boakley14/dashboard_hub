@@ -37,7 +37,7 @@ async function init() {
   document.title = `${entry.title} — 10 Federal`;
 
   // "Open in new tab" button always available in the bar
-  const rawSrc = `./dashboards/${entry.filename}`;
+  const rawSrc = entry.blobUrl || `./dashboards/${entry.filename}`;
   if (newtabBtn) {
     newtabBtn.href = rawSrc;
     newtabBtn.hidden = false;

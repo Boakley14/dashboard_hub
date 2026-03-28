@@ -15,7 +15,7 @@ export async function loadRegistry() {
   if (_cache) return _cache;
 
   try {
-    const res = await fetch('./dashboards/dashboards.json');
+    const res = await fetch('/api/registry');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     _cache = await res.json();
     return _cache;
