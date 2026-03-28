@@ -29,6 +29,10 @@ function categoryClass(category) {
   return CATEGORY_CLASS_MAP[category] ?? 'default';
 }
 
+function _dsTypeKey(type) {
+  return (type || 'other').toLowerCase().replace(/[^a-z]+/g, '-');
+}
+
 function formatDate(iso) {
   if (!iso) return '';
   try {
@@ -68,6 +72,9 @@ export function createCard(entry, opts = {}) {
   const editBtnHtml = onEdit
     ? `<button class="card-edit-btn" type="button" title="Edit card" aria-label="Edit ${entry.title}">⋮</button>`
     : '';
+  const infoBtnHtml = (entry.dataSources?.length)
+    ? `<button class="card-info-btn" type="button" title="View data sources" aria-label="View data sources for ${entry.title}">ⓘ</button>`
+    : '';
 
   article.innerHTML = `
     <div class="${accentClass}"${accentStyle} aria-hidden="true"></div>
@@ -76,6 +83,7 @@ export function createCard(entry, opts = {}) {
         <span class="card-category-badge">${entry.category || 'Uncategorized'}</span>
         <div class="card-header-actions">
           ${entry.openInNewTab ? '<span class="card-newtab-badge" title="Opens in new tab">↗ New Tab</span>' : ''}
+          ${infoBtnHtml}
           ${editBtnHtml}
         </div>
       </div>
@@ -88,6 +96,14 @@ export function createCard(entry, opts = {}) {
       </div>
     </div>
   `;
+
+  // ---- Data source info -----------------------------------
+  if (entry.dataSources?.length) {
+    article.querySelector('.card-info-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      _openDataSourceInfoModal(entry);
+    });
+  }
 
   // ---- Edit modal -----------------------------------------
   if (onEdit) {
@@ -126,13 +142,13 @@ function _closeModal() {
   _activeModal = null;
 }
 
-function _openModal({ title, subtitle, bodyHtml, onMount }) {
+function _openModal({ title, subtitle, bodyHtml, onMount, wide = false }) {
   _closeModal();
 
   const overlay = document.createElement('div');
   overlay.className = 'card-modal-overlay';
   overlay.innerHTML = `
-    <div class="card-modal" role="dialog" aria-modal="true">
+    <div class="card-modal${wide ? ' card-modal--wide' : ''}" role="dialog" aria-modal="true">
       <div class="card-modal-header">
         <div class="card-modal-heading">
           <span class="card-modal-title">${title}</span>
@@ -182,6 +198,30 @@ function _wireColorPicker(modal) {
   });
 
   return { getPending: () => pending };
+}
+
+// ---- Data source info modal (read-only) --------------------
+function _openDataSourceInfoModal(entry) {
+  const sources = entry.dataSources || [];
+  const bodyHtml = sources.map(ds => `
+    <div class="ds-source">
+      <div class="ds-source-header">
+        <span class="ds-type-badge ds-type-${_dsTypeKey(ds.type)}">${ds.type || 'Other'}</span>
+        <span class="ds-name">${ds.name}</span>
+      </div>
+      ${ds.connection ? `<div class="ds-field"><span class="ds-field-label">Connection</span><span class="ds-field-value">${ds.connection}</span></div>` : ''}
+      ${ds.tables    ? `<div class="ds-field"><span class="ds-field-label">Tables / Fields</span><span class="ds-field-value ds-tables">${ds.tables}</span></div>` : ''}
+      ${ds.notes     ? `<div class="ds-field"><span class="ds-field-label">Notes</span><span class="ds-field-value">${ds.notes}</span></div>` : ''}
+    </div>
+  `).join('');
+
+  _openModal({
+    title: entry.title,
+    subtitle: 'Data Sources',
+    bodyHtml: bodyHtml || '<p class="ds-empty">No data source information available.</p>',
+    onMount() {},
+    wide: true,
+  });
 }
 
 // ---- Dashboard card modal ----------------------------------

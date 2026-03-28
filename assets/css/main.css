@@ -598,6 +598,114 @@ body.layout-sidebar .hub-title-bar { display: none; }
 
 .btn-card-cancel:hover { color: var(--color-text); border-color: var(--color-text-muted); }
 
+/* ---- Card Info Button (data sources) ---------------------- */
+.card-info-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  padding: 0 var(--space-1);
+  border-radius: var(--border-radius-sm);
+  flex-shrink: 0;
+  transition: color var(--transition-fast);
+}
+.card-info-btn:hover { color: var(--color-text-heading); }
+
+/* Always visible (not opacity-gated like the edit btn) */
+.dashboard-card .card-info-btn { opacity: 1; }
+
+/* ---- Data Source Info Modal (read-only) ------------------- */
+.card-modal--wide { max-width: 480px; }
+
+.card-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+}
+.card-modal-body { overflow-y: auto; }
+
+.ds-source {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface-alt);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--color-border);
+}
+.ds-source + .ds-source { margin-top: var(--space-3); }
+
+.ds-source-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.ds-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-heading);
+}
+
+.ds-type-badge {
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: var(--border-radius-sm);
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+/* Colored left stripe per source type */
+.ds-type-azure-sql     { border-left: 3px solid #4a90e2; }
+.ds-type-sql-server    { border-left: 3px solid #0078d4; }
+.ds-type-sharepoint-list { border-left: 3px solid #2da44e; }
+.ds-type-excel         { border-left: 3px solid #21a366; }
+.ds-type-power-bi-dataset { border-left: 3px solid #f2c811; }
+.ds-type-csv-flat-file { border-left: 3px solid #e07b39; }
+.ds-type-rest-api      { border-left: 3px solid #58a6ff; }
+.ds-type-other         { border-left: 3px solid var(--color-border); }
+
+.ds-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ds-field-label {
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.ds-field-value {
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.ds-tables {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+
+.ds-empty {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: var(--space-4) 0;
+}
+
 /* ---- Breadcrumb ------------------------------------------- */
 .breadcrumb {
   display: flex;
@@ -1099,10 +1207,31 @@ body.layout-sidebar .nav-layout-btn:hover {
 
 /* ---- Responsive ------------------------------------------- */
 @media (max-width: 640px) {
+  /* Nav: collapse to logo + settings only, remove absolute search overlap */
   .nav { padding: 0 var(--space-4); gap: var(--space-3); }
   .nav-logo-text { display: none; }
+  .nav-search-wrap { display: none; }   /* search hidden on mobile */
+  .nav-welcome { display: none; }       /* greeting hidden on mobile */
+  .nav-layout-btn { display: none; }    /* layout toggle hidden on mobile */
+
+  /* Hub title bar: tighten up below the nav */
+  .hub-title-bar {
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+  .hub-title { font-size: var(--font-size-xl); }
+
+  /* Filter bar: allow wrapping on small screens */
+  .filter-bar { flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-4); }
+
+  /* Cards: single column */
   .page-body { padding: var(--space-4) var(--space-4) var(--space-10); }
   .card-grid { grid-template-columns: 1fr; }
+
+  /* Card modals: full-width on mobile */
+  .card-modal-overlay { padding: var(--space-3); align-items: flex-end; }
+  .card-modal, .card-modal--wide { max-width: 100%; border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0; }
 
   /* Always hide sidebar on mobile — not usable on small screens */
   body.layout-sidebar .sidebar { display: none; }
@@ -1110,6 +1239,4 @@ body.layout-sidebar .nav-layout-btn:hover {
   body.layout-sidebar .card-grid   { display: grid !important; }
   body.layout-sidebar .breadcrumb  { display: flex !important; }
   body.layout-sidebar .inline-viewer { display: none !important; }
-  /* Hide layout toggle button on mobile */
-  .nav-layout-btn { display: none; }
 }
