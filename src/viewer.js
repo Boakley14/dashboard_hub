@@ -3,7 +3,7 @@
  * Wires together: router → registry → iframe / fallback
  */
 
-import { applyTheme, applyNavColor } from './modules/theme.js';
+import { applyTheme, applyNavColor, applyNavTextColor } from './modules/theme.js';
 import { findById }                  from './modules/registry.js';
 import { getParam }                  from './modules/router.js';
 import { mountIframe }               from './modules/iframe.js';
@@ -11,6 +11,7 @@ import { hideSpinner, show, hide }   from './modules/ui.js';
 
 applyTheme();
 applyNavColor();
+applyNavTextColor();
 
 async function init() {
   const id = getParam('id');

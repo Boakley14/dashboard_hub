@@ -3,8 +3,8 @@
  * Wires: tab navigation, appearance controls, publish form, manage list
  */
 
-import { applyTheme, applyNavColor, toggleTheme, getTheme,
-         setNavColor, getNavColor }            from './modules/theme.js';
+import { applyTheme, applyNavColor, applyNavTextColor, toggleTheme, getTheme,
+         setNavColor, getNavColor, setNavTextColor, getNavTextColor } from './modules/theme.js';
 import { slugify, todayIso, readFileAsText,
          validateForm, buildEntry }           from './modules/admin-form.js';
 import { loadRegistry }                       from './modules/registry.js';
@@ -12,6 +12,7 @@ import { loadRegistry }                       from './modules/registry.js';
 // Apply appearance immediately
 applyTheme();
 applyNavColor();
+applyNavTextColor();
 
 // ---- DOM refs ----------------------------------------------
 const $ = id => document.getElementById(id);
@@ -103,6 +104,71 @@ function initNavColorPicker() {
     const hex    = picker.value.toLowerCase();
     const colors = getSavedNavColors();
     if (!colors.includes(hex)) { colors.push(hex); setSavedNavColors(colors); }
+    renderSwatches();
+    saveBtn.textContent = 'Saved!';
+    setTimeout(() => { saveBtn.textContent = 'Save color'; }, 1500);
+  });
+
+  renderSwatches();
+}
+
+// ---- Appearance: nav text color picker ---------------------
+const DEFAULT_NAV_TEXT_COLORS = ['#ffffff', '#f5f5f5', '#d4d4d4', '#000000', '#2e2e2e'];
+const LS_NAV_TEXT_COLORS_SAVED = 'hub-nav-text-colors-saved';
+
+function getSavedNavTextColors() {
+  try { return JSON.parse(localStorage.getItem(LS_NAV_TEXT_COLORS_SAVED)) ?? DEFAULT_NAV_TEXT_COLORS; }
+  catch { return [...DEFAULT_NAV_TEXT_COLORS]; }
+}
+function setSavedNavTextColors(colors) {
+  localStorage.setItem(LS_NAV_TEXT_COLORS_SAVED, JSON.stringify(colors));
+}
+
+function initNavTextColorPicker() {
+  const picker    = $('nav-text-picker');
+  const saveBtn   = $('btn-save-nav-text-color');
+  const container = $('saved-nav-text-colors');
+  if (!picker || !saveBtn || !container) return;
+
+  picker.value = getNavTextColor().toLowerCase();
+
+  function renderSwatches() {
+    const colors = getSavedNavTextColors();
+    const cur    = getNavTextColor().toLowerCase();
+    container.innerHTML = colors.map((hex, i) => `
+      <button type="button" class="saved-color-btn${hex === cur ? ' active' : ''}"
+        data-hex="${hex}" data-index="${i}"
+        style="background:${hex}" title="${hex}" aria-label="Color ${hex}"
+      ><span class="saved-color-remove" data-index="${i}" aria-hidden="true">×</span></button>
+    `).join('');
+
+    container.querySelectorAll('.saved-color-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const removeEl = e.target.closest('.saved-color-remove');
+        if (removeEl) {
+          e.stopPropagation();
+          const colors = getSavedNavTextColors();
+          colors.splice(parseInt(removeEl.dataset.index), 1);
+          setSavedNavTextColors(colors);
+          renderSwatches();
+          return;
+        }
+        picker.value = btn.dataset.hex;
+        setNavTextColor(btn.dataset.hex);
+        renderSwatches();
+      });
+    });
+  }
+
+  picker.addEventListener('input', () => {
+    setNavTextColor(picker.value);
+    renderSwatches();
+  });
+
+  saveBtn.addEventListener('click', () => {
+    const hex    = picker.value.toLowerCase();
+    const colors = getSavedNavTextColors();
+    if (!colors.includes(hex)) { colors.push(hex); setSavedNavTextColors(colors); }
     renderSwatches();
     saveBtn.textContent = 'Saved!';
     setTimeout(() => { saveBtn.textContent = 'Save color'; }, 1500);
@@ -328,6 +394,7 @@ function initHubName() {
 initTabs();
 initThemeToggle();
 initNavColorPicker();
+initNavTextColorPicker();
 initHubName();
 inputDate.value = todayIso();
 loadCategorySuggestions();

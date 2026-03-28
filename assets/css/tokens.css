@@ -22,6 +22,8 @@
   --color-accent:         var(--red-bright);
   --color-hero-bg:        #0A0A0A;
   --color-sidebar-bg:     #0A0A0A;
+  --color-nav-text:       #FFFFFF;
+  --color-nav-text-muted: rgba(255,255,255,0.5);
   --color-hero-text:      var(--white);
   --color-surface:        #1C1C1C;
   --color-surface-alt:    #111111;

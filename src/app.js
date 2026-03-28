@@ -3,7 +3,7 @@
  * Wires together: registry → view state → cards → navigation → UI events
  */
 
-import { applyTheme, applyNavColor, getFirstName }      from './modules/theme.js';
+import { applyTheme, applyNavColor, applyNavTextColor, getFirstName } from './modules/theme.js';
 import { loadRegistry, invalidateCache, RegistryLoadError } from './modules/registry.js';
 import { filterDashboards, extractCategories }           from './modules/filters.js';
 import { renderCards, renderCategoryCards }              from './modules/cards.js';
@@ -15,6 +15,7 @@ import { initNav }                                       from './modules/nav.js'
 // Apply appearance preferences immediately (before any rendering)
 applyTheme();
 applyNavColor();
+applyNavTextColor();
 
 // ---- State ------------------------------------------------
 let registry           = [];

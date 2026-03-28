@@ -43,6 +43,33 @@ export function getNavColor() {
   return localStorage.getItem(LS_NAV_COLOR) ?? '#0A0A0A';
 }
 
+// ---- Nav text color ----------------------------------------
+
+const LS_NAV_TEXT_COLOR = 'hub-nav-text-color'; // hex string
+
+function _hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+export function applyNavTextColor() {
+  const hex = localStorage.getItem(LS_NAV_TEXT_COLOR) ?? '#ffffff';
+  document.documentElement.style.setProperty('--color-nav-text', hex);
+  document.documentElement.style.setProperty('--color-nav-text-muted', _hexToRgba(hex, 0.5));
+}
+
+export function setNavTextColor(hex) {
+  localStorage.setItem(LS_NAV_TEXT_COLOR, hex);
+  document.documentElement.style.setProperty('--color-nav-text', hex);
+  document.documentElement.style.setProperty('--color-nav-text-muted', _hexToRgba(hex, 0.5));
+}
+
+export function getNavTextColor() {
+  return localStorage.getItem(LS_NAV_TEXT_COLOR) ?? '#ffffff';
+}
+
 // ---- User greeting (Azure AD via /.auth/me) ---------------
 
 export async function getFirstName() {

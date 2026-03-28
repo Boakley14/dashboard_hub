@@ -70,14 +70,14 @@ a:hover { text-decoration: underline; }
   border: 1px solid rgba(255,255,255,0.15);
   border-radius: var(--border-radius-md);
   background: rgba(255,255,255,0.08);
-  color: var(--color-text-on-dark);
+  color: var(--color-nav-text);
   font-family: var(--font-family);
   font-size: var(--font-size-sm);
   transition: border-color var(--transition-fast), background var(--transition-fast);
   outline: none;
 }
 
-.nav-search::placeholder { color: rgba(255,255,255,0.45); }
+.nav-search::placeholder { color: var(--color-nav-text-muted); }
 
 .nav-search:focus {
   border-color: var(--color-primary);
@@ -89,7 +89,7 @@ a:hover { text-decoration: underline; }
   left: var(--space-3);
   top: 50%;
   transform: translateY(-50%);
-  color: rgba(255,255,255,0.4);
+  color: var(--color-nav-text-muted);
   pointer-events: none;
 }
 
@@ -103,7 +103,7 @@ a:hover { text-decoration: underline; }
 .nav-welcome {
   margin-left: auto;
   font-size: var(--font-size-xs);
-  color: rgba(255,255,255,0.5);
+  color: var(--color-nav-text-muted);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -115,7 +115,7 @@ a:hover { text-decoration: underline; }
   padding: var(--space-2) var(--space-3);
   border: 1.5px solid rgba(255,255,255,0.2);
   border-radius: var(--border-radius-md);
-  color: rgba(255,255,255,0.75);
+  color: var(--color-nav-text);
   text-decoration: none;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
@@ -815,9 +815,9 @@ body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
 
 /* Sidebar always uses dark-scheme colors (nav color is always dark) */
 .sidebar .sidebar-header        { border-bottom-color: rgba(255,255,255,0.08); }
-.sidebar .sidebar-title         { color: rgba(255,255,255,0.4); }
-.sidebar .sidebar-collapse-btn  { color: rgba(255,255,255,0.4); }
-.sidebar .sidebar-collapse-btn:hover { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.07); }
+.sidebar .sidebar-title         { color: var(--color-nav-text-muted); }
+.sidebar .sidebar-collapse-btn  { color: var(--color-nav-text-muted); }
+.sidebar .sidebar-collapse-btn:hover { color: var(--color-nav-text); background: rgba(255,255,255,0.07); }
 
 /* ---- Sidebar Nav Items ------------------------------------ */
 .sidebar-nav {
@@ -836,7 +836,7 @@ body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
   background: none;
   width: 100%;
   text-align: left;
-  color: rgba(255,255,255,0.75);
+  color: var(--color-nav-text);
   font-family: var(--font-family);
   font-size: var(--font-size-sm);
   transition: background var(--transition-fast), color var(--transition-fast);
@@ -846,7 +846,7 @@ body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
 
 .sidebar-item:hover {
   background: rgba(255,255,255,0.07);
-  color: rgba(255,255,255,0.95);
+  color: var(--color-nav-text);
 }
 
 .sidebar-item.active {
@@ -885,7 +885,7 @@ body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
   align-items: center;
   width: 14px;
   flex-shrink: 0;
-  color: rgba(255,255,255,0.4);
+  color: var(--color-nav-text-muted);
   transition: transform var(--transition-fast);
 }
 
@@ -896,7 +896,7 @@ body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
 }
 
 .sidebar-item-count {
-  color: rgba(255,255,255,0.4);
+  color: var(--color-nav-text-muted);
   background: rgba(255,255,255,0.08);
 }
 
@@ -1068,7 +1068,7 @@ body.layout-sidebar .sidebar--collapsed .sidebar-chevron {
   background: none;
   border: 1.5px solid rgba(255,255,255,0.2);
   border-radius: var(--border-radius-md);
-  color: rgba(255,255,255,0.75);
+  color: var(--color-nav-text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
