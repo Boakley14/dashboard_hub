@@ -1,18 +1,17 @@
 /**
  * nav.js — Navigation layout manager
- * Responsibility: manage sidebar vs. pill layout toggle and sidebar collapse state.
  *
- * Layout modes:
- *   'card'    — default; filter pills visible, no sidebar
- *   'sidebar' — collapsible left-hand category sidebar; pills hidden
+ * Card mode   (default): sidebar hidden; filter pills shown; card grid shown.
+ * Sidebar mode:          sidebar shown; filter pills hidden; card grid hidden;
+ *                        clicking a dashboard loads it in the inline viewer.
  *
- * Preferences are stored in localStorage and restored on page load.
+ * Layout preference and sidebar collapse state are persisted in localStorage.
  *
- * Exports: initNav(categories, onCategorySelect)
+ * Exports: initNav(registry, onCategorySelect)
  */
 
-const LS_LAYOUT    = 'hub-layout';            // stored value: 'card' | 'sidebar'
-const LS_COLLAPSED = 'hub-sidebar-collapsed'; // stored value: 'true' | 'false'
+const LS_LAYOUT    = 'hub-layout';            // 'card' | 'sidebar'
+const LS_COLLAPSED = 'hub-sidebar-collapsed'; // 'true' | 'false'
 
 // ---- Preference helpers ------------------------------------
 
@@ -24,48 +23,138 @@ function storedCollapsed() {
   return localStorage.getItem(LS_COLLAPSED) === 'true';
 }
 
-// ---- DOM helpers -------------------------------------------
+// ---- Layout / collapse DOM helpers -------------------------
 
-/**
- * Apply layout class to body and swap toggle button icons.
- * @param {'card'|'sidebar'} layout
- */
 function applyLayout(layout) {
   document.body.classList.toggle('layout-sidebar', layout === 'sidebar');
 
-  // Swap icons: show sidebar icon when in card mode (to invite switching),
-  // show card icon when in sidebar mode (to invite switching back).
   const iconSidebar = document.getElementById('layout-icon-sidebar');
   const iconCard    = document.getElementById('layout-icon-card');
   if (iconSidebar) iconSidebar.hidden = layout === 'sidebar';
   if (iconCard)    iconCard.hidden    = layout !== 'sidebar';
 }
 
-/**
- * Apply collapsed class to sidebar element and update aria label.
- * @param {boolean} collapsed
- */
 function applyCollapsed(collapsed) {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
   sidebar.classList.toggle('sidebar--collapsed', collapsed);
 
   const btn = document.getElementById('sidebar-collapse-btn');
-  if (btn) {
-    btn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+  if (btn) btn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+}
+
+// ---- Inline viewer helpers ---------------------------------
+
+/**
+ * Show the "select a dashboard" prompt and hide the iframe.
+ */
+function showInlinePrompt() {
+  const prompt  = document.getElementById('inline-viewer-prompt');
+  const bar     = document.getElementById('inline-viewer-bar');
+  const iframe  = document.getElementById('inline-iframe');
+  const fallback = document.getElementById('inline-fallback');
+
+  if (prompt)   prompt.hidden  = false;
+  if (bar)      bar.hidden     = true;
+  if (iframe)   { iframe.hidden = true; iframe.src = ''; }
+  if (fallback) fallback.hidden = true;
+}
+
+/**
+ * Load a dashboard entry into the inline iframe.
+ * @param {Object} entry - Dashboard registry entry
+ */
+function loadInlineViewer(entry) {
+  const prompt   = document.getElementById('inline-viewer-prompt');
+  const bar      = document.getElementById('inline-viewer-bar');
+  const titleEl  = document.getElementById('inline-viewer-title');
+  const catEl    = document.getElementById('inline-viewer-category');
+  const newtab   = document.getElementById('inline-viewer-newtab');
+  const iframe   = document.getElementById('inline-iframe');
+  const fallback = document.getElementById('inline-fallback');
+
+  const src = entry.blobUrl || `./dashboards/${entry.filename}`;
+
+  if (prompt) prompt.hidden = true;
+  if (fallback) { fallback.hidden = true; fallback.innerHTML = ''; }
+
+  // Populate the bar
+  if (titleEl) titleEl.textContent = entry.title;
+  if (catEl)   catEl.textContent   = entry.category || '';
+  if (newtab)  { newtab.href = src; newtab.hidden = false; }
+  if (bar)     bar.hidden = false;
+
+  // Mount the iframe
+  if (!iframe) return;
+  iframe.hidden = false;
+  iframe.setAttribute('sandbox', [
+    'allow-scripts', 'allow-same-origin', 'allow-forms',
+    'allow-popups', 'allow-downloads', 'allow-modals'
+  ].join(' '));
+  iframe.setAttribute('title', entry.title);
+
+  iframe.onload = () => {
+    try {
+      const doc = iframe.contentDocument;
+      if (!doc || (!doc.body && !doc.head)) {
+        _inlineError(iframe, fallback, entry, src);
+      }
+      // SecurityError = cross-origin success — do nothing
+    } catch (e) {
+      if (e.name !== 'SecurityError') {
+        _inlineError(iframe, fallback, entry, src);
+      }
+    }
+  };
+
+  iframe.onerror = () => _inlineError(iframe, fallback, entry, src);
+  iframe.src = src;
+}
+
+function _inlineError(iframe, fallback, entry, src) {
+  if (iframe)  { iframe.hidden = true; iframe.src = ''; }
+  if (fallback) {
+    fallback.innerHTML = `
+      <div style="text-align:center">
+        <p style="color:var(--color-text-muted);margin-bottom:var(--space-4)">
+          <strong>${entry.title}</strong> couldn't be displayed in the embedded viewer.
+        </p>
+        <a href="${src}" target="_blank" rel="noopener"
+           style="background:var(--color-primary);color:#fff;padding:var(--space-2) var(--space-5);
+                  border-radius:var(--border-radius-md);font-size:var(--font-size-sm);text-decoration:none">
+          Open in New Tab ↗
+        </a>
+      </div>`;
+    fallback.hidden = false;
   }
 }
 
-// ---- Sidebar item rendering --------------------------------
+/**
+ * Clear the inline viewer when switching back to card mode.
+ */
+function clearInlineViewer() {
+  const iframe = document.getElementById('inline-iframe');
+  if (iframe) { iframe.src = ''; iframe.hidden = true; }
+  showInlinePrompt();
+}
+
+// ---- Sidebar content rendering -----------------------------
 
 /**
- * Create a single sidebar nav item button.
- * @param {string}   label     — display text and data-cat value
- * @param {boolean}  isActive  — whether this item is currently selected
- * @param {function} onClick   — called when the item is clicked
- * @returns {HTMLButtonElement}
+ * In card mode: render category list (each click filters the card grid).
  */
-function createSidebarItem(label, isActive, onClick) {
+function renderCategoryList(categories, activeCategory, onCategorySelect) {
+  const nav = document.getElementById('sidebar-nav');
+  if (!nav) return;
+  nav.innerHTML = '';
+
+  nav.appendChild(createCatItem('All', activeCategory === null, () => onCategorySelect(null)));
+  categories.forEach(cat => {
+    nav.appendChild(createCatItem(cat, activeCategory === cat, () => onCategorySelect(cat)));
+  });
+}
+
+function createCatItem(label, isActive, onClick) {
   const btn = document.createElement('button');
   btn.className = 'sidebar-item' + (isActive ? ' active' : '');
   btn.type = 'button';
@@ -81,75 +170,143 @@ function createSidebarItem(label, isActive, onClick) {
 
   btn.appendChild(dot);
   btn.appendChild(labelEl);
-
   btn.addEventListener('click', () => {
-    // Update active class on all sidebar items immediately
-    document.querySelectorAll('#sidebar-nav .sidebar-item').forEach(el => {
+    nav.querySelectorAll('.sidebar-item').forEach(el => {
       el.classList.toggle('active', el.dataset.cat === label);
     });
     onClick();
   });
-
   return btn;
 }
 
 /**
- * Render (or re-render) the sidebar category list.
- * @param {string[]}     categories     — from extractCategories()
- * @param {string|null}  activeCategory — currently selected category (null = All)
- * @param {function}     onSelect       — callback(category: string|null)
+ * In sidebar mode: render dashboards grouped by category.
+ * Clicking a dashboard loads it in the inline viewer.
  */
-function renderSidebarItems(categories, activeCategory, onSelect) {
+function renderDashboardList(registry) {
   const nav = document.getElementById('sidebar-nav');
   if (!nav) return;
-
   nav.innerHTML = '';
 
-  // "All" item
-  nav.appendChild(
-    createSidebarItem('All', activeCategory === null, () => onSelect(null))
-  );
+  if (!registry.length) {
+    const empty = document.createElement('p');
+    empty.className = 'sidebar-item-label';
+    empty.style.cssText = 'padding:var(--space-4) var(--space-3);color:var(--color-text-muted);font-size:var(--font-size-xs)';
+    empty.textContent = 'No dashboards published yet.';
+    nav.appendChild(empty);
+    return;
+  }
 
-  // One item per category
-  categories.forEach(cat => {
-    nav.appendChild(
-      createSidebarItem(cat, activeCategory === cat, () => onSelect(cat))
-    );
+  // Group by category
+  const groups = {};
+  const uncategorised = [];
+  registry.forEach(entry => {
+    const cat = entry.category || '';
+    if (cat) {
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(entry);
+    } else {
+      uncategorised.push(entry);
+    }
   });
+
+  // Render each category group
+  Object.keys(groups).sort().forEach(cat => {
+    const label = document.createElement('div');
+    label.className = 'sidebar-group-label';
+    label.textContent = cat;
+    nav.appendChild(label);
+
+    groups[cat].forEach(entry => {
+      nav.appendChild(createDashboardItem(entry, nav));
+    });
+  });
+
+  // Uncategorised dashboards at the bottom
+  if (uncategorised.length) {
+    const label = document.createElement('div');
+    label.className = 'sidebar-group-label';
+    label.textContent = 'Other';
+    nav.appendChild(label);
+    uncategorised.forEach(entry => {
+      nav.appendChild(createDashboardItem(entry, nav));
+    });
+  }
+}
+
+function createDashboardItem(entry, nav) {
+  const btn = document.createElement('button');
+  btn.className = 'sidebar-item sidebar-item--dashboard';
+  btn.type = 'button';
+  btn.dataset.id = entry.id;
+
+  const dot = document.createElement('span');
+  dot.className = 'sidebar-item-dot';
+  dot.setAttribute('aria-hidden', 'true');
+
+  const labelEl = document.createElement('span');
+  labelEl.className = 'sidebar-item-label';
+  labelEl.textContent = entry.title;
+
+  btn.appendChild(dot);
+  btn.appendChild(labelEl);
+
+  btn.addEventListener('click', () => {
+    // Highlight active item
+    nav.querySelectorAll('.sidebar-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.id === entry.id);
+    });
+    loadInlineViewer(entry);
+  });
+
+  return btn;
 }
 
 // ---- Public API --------------------------------------------
 
 /**
  * Initialize the navigation module.
- * Call this after the registry has loaded and extractCategories() has run.
  *
- * @param {string[]} categories       — category list from extractCategories()
- * @param {function} onCategorySelect — callback: receives category string or null ("All")
- * @returns {{ setActiveCategory: function }} — controller to sync active state from outside
+ * @param {Object[]} registry       - Full dashboard registry array
+ * @param {function} onCategorySelect - Callback (card mode only): receives cat string or null
+ * @returns {{ setActiveCategory: function }}
  */
-export function initNav(categories, onCategorySelect) {
+export function initNav(registry, onCategorySelect) {
   let layout    = storedLayout();
   let collapsed = storedCollapsed();
 
-  // Render initial sidebar items (no active category — "All")
-  renderSidebarItems(categories, null, onCategorySelect);
+  const categories = [...new Set(registry.map(d => d.category).filter(Boolean))].sort();
 
-  // Apply persisted preferences on load
+  // Initial render
+  if (layout === 'sidebar') {
+    renderDashboardList(registry);
+    showInlinePrompt();
+  } else {
+    renderCategoryList(categories, null, onCategorySelect);
+  }
+
   applyLayout(layout);
   applyCollapsed(collapsed);
 
-  // ---- Layout toggle button (top nav bar) ------------------
+  // ---- Layout toggle (top nav) ----------------------------
   const layoutBtn = document.getElementById('layout-toggle-btn');
   if (layoutBtn) {
     layoutBtn.addEventListener('click', () => {
       layout = layout === 'card' ? 'sidebar' : 'card';
       localStorage.setItem(LS_LAYOUT, layout);
       applyLayout(layout);
+
+      if (layout === 'sidebar') {
+        renderDashboardList(registry);
+        showInlinePrompt();
+      } else {
+        renderCategoryList(categories, null, onCategorySelect);
+        clearInlineViewer();
+      }
     });
   }
 
-  // ---- Sidebar collapse button (inside sidebar) ------------
+  // ---- Sidebar collapse button ----------------------------
   const collapseBtn = document.getElementById('sidebar-collapse-btn');
   if (collapseBtn) {
     collapseBtn.addEventListener('click', () => {
@@ -159,13 +316,11 @@ export function initNav(categories, onCategorySelect) {
     });
   }
 
-  // ---- Return controller for bidirectional sync ------------
+  // ---- Controller returned to app.js (card mode sync) ----
   return {
     /**
-     * Highlight the given category in the sidebar.
-     * Called by app.js when a filter pill is clicked, so both nav
-     * surfaces stay in sync.
-     * @param {string|null} cat — null means "All"
+     * Sync the active category highlight in the sidebar (card mode only).
+     * @param {string|null} cat
      */
     setActiveCategory(cat) {
       const label = cat ?? 'All';

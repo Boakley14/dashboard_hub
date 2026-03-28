@@ -49,16 +49,20 @@ export function mountIframe(entry) {
  */
 function _handleLoad(iframe, entry, src) {
   try {
-    // If same-origin and loaded, contentDocument should be accessible
     const doc = iframe.contentDocument;
     if (!doc || (!doc.body && !doc.head)) {
       // Loaded but empty — treat as failure
       _handleError(iframe, entry, src);
+    }
+    // Otherwise: same-origin content loaded fine — nothing more to do
+  } catch (e) {
+    if (e.name === 'SecurityError') {
+      // SecurityError means the iframe is cross-origin (e.g. Azure Blob Storage).
+      // This is EXPECTED and means the content loaded successfully — the browser
+      // simply prevents us from reading its DOM. Do NOT treat as an error.
       return;
     }
-    // Success — iframe content is visible, nothing more to do
-  } catch (e) {
-    // SecurityError: cross-origin block (rare for local .html files, but defensive)
+    // Any other error type is a genuine load failure
     _handleError(iframe, entry, src);
   }
 }

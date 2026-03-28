@@ -127,16 +127,17 @@ async function init() {
     const categories = extractCategories(registry);
     buildFilterBar(categories);
 
-    // Initialize navigation module (sidebar + layout toggle)
+    // Initialize navigation module (sidebar + layout toggle).
+    // Pass the full registry so the sidebar can list individual dashboards.
     const bar = document.getElementById('filter-bar');
-    navController = initNav(categories, (cat) => {
+    navController = initNav(registry, (cat) => {
       activeFilters.category = cat;
       setParam('category', cat ?? null);
       if (bar) updateActivePill(bar, cat ?? 'All');
       applyFilters();
     });
 
-    // Sync sidebar to URL-preloaded category
+    // Sync sidebar to URL-preloaded category (card mode only)
     if (navController && activeFilters.category) {
       navController.setActiveCategory(activeFilters.category);
     }

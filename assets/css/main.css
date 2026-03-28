@@ -395,10 +395,14 @@ body.layout-sidebar .sidebar--collapsed {
   width: var(--sidebar-collapsed-width);
 }
 
-/* In sidebar mode, hide the filter pills */
-body.layout-sidebar .filter-bar {
-  display: none;
-}
+/* In sidebar mode: hide filter pills, card grid, empty state, and spinner */
+body.layout-sidebar .filter-bar  { display: none; }
+body.layout-sidebar .card-grid   { display: none !important; }
+body.layout-sidebar .empty-state { display: none !important; }
+body.layout-sidebar .spinner     { display: none !important; }
+
+/* In sidebar mode: show the inline viewer panel */
+body.layout-sidebar .inline-viewer { display: flex; }
 
 /* ---- Sidebar Header --------------------------------------- */
 .sidebar-header {
@@ -504,6 +508,129 @@ body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
   transition: opacity var(--transition-base);
 }
 
+/* ---- Sidebar Category Group Headers ----------------------- */
+.sidebar-group-label {
+  padding: var(--space-4) var(--space-3) var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity var(--transition-base);
+}
+
+body.layout-sidebar .sidebar--collapsed .sidebar-group-label {
+  opacity: 0;
+}
+
+/* Dashboard items are indented slightly under their group */
+.sidebar-item--dashboard {
+  padding-left: var(--space-5);
+  font-size: var(--font-size-xs);
+}
+
+/* ---- Inline Dashboard Viewer ------------------------------ */
+.inline-viewer {
+  display: none; /* shown by body.layout-sidebar rule */
+  flex-direction: column;
+  height: calc(100vh - var(--nav-height));
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Prompt: shown when no dashboard is selected */
+.inline-viewer-prompt {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  text-align: center;
+  padding: var(--space-12);
+}
+
+.inline-viewer-prompt svg {
+  opacity: 0.3;
+  color: var(--color-text-muted);
+}
+
+/* Top bar: dashboard title + category + new-tab link */
+.inline-viewer-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-5);
+  height: 44px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.inline-viewer-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.inline-viewer-category {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.inline-viewer-newtab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  text-decoration: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--border-radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.inline-viewer-newtab:hover {
+  color: var(--color-text-heading);
+  background: var(--color-surface-alt);
+  text-decoration: none;
+}
+
+/* The iframe fills the remaining height */
+.inline-iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: var(--color-surface-alt);
+  display: block;
+}
+
+/* Fallback shown when iframe can't render */
+.inline-fallback {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
 /* ---- Layout Toggle Button (top nav) ----------------------- */
 .nav-layout-btn {
   background: none;
@@ -540,8 +667,10 @@ body.layout-sidebar .nav-layout-btn {
 
   /* Always hide sidebar on mobile — not usable on small screens */
   body.layout-sidebar .sidebar { display: none; }
-  /* Always show filter pills on mobile */
-  body.layout-sidebar .filter-bar { display: flex; }
+  /* Always show filter pills and card grid on mobile */
+  body.layout-sidebar .filter-bar  { display: flex; }
+  body.layout-sidebar .card-grid   { display: grid !important; }
+  body.layout-sidebar .inline-viewer { display: none !important; }
   /* Hide layout toggle button on mobile */
   .nav-layout-btn { display: none; }
 }

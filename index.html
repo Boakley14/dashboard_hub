@@ -107,7 +107,7 @@
         <div class="spinner-ring"></div>
       </div>
 
-      <!-- Card grid -->
+      <!-- Card grid (shown in card layout mode) -->
       <section
         id="card-grid"
         class="card-grid"
@@ -115,10 +115,58 @@
         hidden
       ></section>
 
-      <!-- Empty state -->
+      <!-- Empty state (shown in card layout mode when no results) -->
       <p id="empty-state" class="empty-state" hidden aria-live="polite">
         No dashboards match your search.
       </p>
+
+      <!-- ================================================
+           INLINE DASHBOARD VIEWER
+           Shown in sidebar layout mode when a dashboard is selected.
+           ================================================ -->
+      <div id="inline-viewer" class="inline-viewer">
+
+        <!-- Prompt shown when no dashboard has been selected yet -->
+        <div id="inline-viewer-prompt" class="inline-viewer-prompt">
+          <svg width="48" height="48" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="18" rx="1" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M13 7h8M13 12h8M13 17h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <p>Select a dashboard from the left panel to view it here.</p>
+        </div>
+
+        <!-- Bar shown when a dashboard is loaded -->
+        <div id="inline-viewer-bar" class="inline-viewer-bar" hidden>
+          <span id="inline-viewer-title" class="inline-viewer-title"></span>
+          <span id="inline-viewer-category" class="inline-viewer-category"></span>
+          <a
+            id="inline-viewer-newtab"
+            class="inline-viewer-newtab"
+            href="#"
+            target="_blank"
+            rel="noopener"
+            hidden
+          >
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6m0 0v6m0-6L10 14"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            New Tab
+          </a>
+        </div>
+
+        <!-- The iframe itself -->
+        <iframe
+          id="inline-iframe"
+          class="inline-iframe"
+          title="Dashboard"
+          hidden
+        ></iframe>
+
+        <!-- Fallback shown if the iframe fails to load -->
+        <div id="inline-fallback" class="inline-fallback" hidden></div>
+
+      </div><!-- /inline-viewer -->
 
     </main>
 
