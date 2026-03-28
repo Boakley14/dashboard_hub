@@ -171,15 +171,15 @@ body {
 }
 
 .connection-status.connected {
-  background: rgba(34, 197, 94, 0.08);
-  border: 1px solid rgba(34, 197, 94, 0.25);
-  color: #15803d;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #4ade80;
 }
 
 .connection-status.disconnected {
-  background: rgba(197, 33, 39, 0.06);
-  border: 1px solid rgba(197, 33, 39, 0.2);
-  color: var(--red-deep);
+  background: rgba(197, 33, 39, 0.1);
+  border: 1px solid rgba(197, 33, 39, 0.3);
+  color: var(--red-bright);
 }
 
 /* ---- Form elements ---------------------------------------- */
@@ -301,7 +301,7 @@ textarea {
   margin-top: var(--space-1);
 }
 
-.file-drop-zone.has-file .file-drop-label { color: #15803d; }
+.file-drop-zone.has-file .file-drop-label { color: #4ade80; }
 
 /* ---- Toggle switch ---------------------------------------- */
 .toggle-group {
@@ -458,15 +458,15 @@ textarea {
 }
 
 .alert-error {
-  background: rgba(197, 33, 39, 0.07);
-  border: 1px solid rgba(197, 33, 39, 0.25);
-  color: var(--red-deep);
+  background: rgba(197, 33, 39, 0.12);
+  border: 1px solid rgba(197, 33, 39, 0.35);
+  color: var(--red-bright);
 }
 
 .alert-success {
-  background: rgba(34, 197, 94, 0.07);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  color: #15803d;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: #4ade80;
 }
 
 .alert-error   svg { color: var(--color-primary); flex-shrink: 0; margin-top: 1px; }
@@ -488,7 +488,7 @@ textarea {
 }
 
 .publish-step.active  { color: var(--color-text); }
-.publish-step.done    { color: #15803d; }
+.publish-step.done    { color: #4ade80; }
 .publish-step.failed  { color: var(--red-deep); }
 
 .step-icon {

@@ -20,17 +20,17 @@
   --color-primary:        var(--red-primary);
   --color-primary-hover:  var(--red-deep);
   --color-accent:         var(--red-bright);
-  --color-hero-bg:        var(--black);
+  --color-hero-bg:        #0A0A0A;
   --color-hero-text:      var(--white);
-  --color-surface:        var(--white);
-  --color-surface-alt:    var(--gray-light);
-  --color-border:         var(--gray-border);
-  --color-text:           var(--gray-dark);
-  --color-text-heading:   var(--black);
-  --color-text-muted:     var(--gray-mid);
+  --color-surface:        #1C1C1C;
+  --color-surface-alt:    #111111;
+  --color-border:         #2E2E2E;
+  --color-text:           #D4D4D4;
+  --color-text-heading:   var(--white);
+  --color-text-muted:     #888888;
   --color-text-on-dark:   var(--white);
   --color-text-on-red:    var(--white);
-  --color-link:           var(--red-primary);
+  --color-link:           var(--red-bright);
 
   /* --- Typography --- */
   --font-family:    'Inter', 'Helvetica Neue', Arial, sans-serif;
