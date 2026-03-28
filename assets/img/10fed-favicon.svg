@@ -1,12 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#C52127"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Red circle, no background — transparent outside -->
+  <circle cx="50" cy="50" r="50" fill="#C52127"/>
+  <!-- White "10" in a serif display style matching the brand mark -->
   <text
-    x="16" y="23"
-    font-family="'Helvetica Neue', Arial, sans-serif"
-    font-weight="900"
-    font-size="17"
+    x="50" y="68"
+    font-family="Georgia, 'Times New Roman', Times, serif"
+    font-weight="bold"
+    font-size="56"
     fill="#FFFFFF"
     text-anchor="middle"
-    letter-spacing="-0.5"
+    font-style="normal"
+    letter-spacing="-2"
   >10</text>
 </svg>
