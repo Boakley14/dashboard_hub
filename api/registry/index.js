@@ -1,34 +1,41 @@
 /**
  * api/registry/index.js
- * HTTP GET — returns the dashboard registry array from Blob Storage.
+ * HTTP GET — returns the dashboard registry from Azure Blob Storage.
  * Returns [] if registry.json doesn't exist yet.
  *
  * Required app settings:
- *   AZURE_STORAGE_CONNECTION_STRING  — blob storage connection string
+ *   AZURE_STORAGE_ACCOUNT_NAME  — e.g. 10fedhub
+ *   AZURE_STORAGE_SAS_TOKEN     — account SAS token (no leading ?)
  */
 
-const { BlobServiceClient } = require('@azure/storage-blob');
+const https = require('https');
 
-const CONTAINER     = 'dashboards';
+const CONTAINER    = 'dashboards';
 const REGISTRY_BLOB = 'registry.json';
 
 module.exports = async function (context, req) {
-  const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+  const account  = process.env.AZURE_STORAGE_ACCOUNT_NAME;
+  const sasToken = process.env.AZURE_STORAGE_SAS_TOKEN;
 
-  if (!connectionString) {
+  if (!account || !sasToken) {
     context.res = { status: 500, body: { error: 'Storage not configured on server.' } };
     return;
   }
 
   try {
-    const serviceClient   = BlobServiceClient.fromConnectionString(connectionString);
-    const containerClient = serviceClient.getContainerClient(CONTAINER);
-    const blobClient      = containerClient.getBlockBlobClient(REGISTRY_BLOB);
+    const host = `${account}.blob.core.windows.net`;
+    const res  = await blobGet(host, `/${CONTAINER}/${REGISTRY_BLOB}?${sasToken}`);
 
-    const download = await blobClient.download(0);
-    const text     = await streamToString(download.readableStreamBody);
-    const registry = JSON.parse(text);
+    if (res.statusCode === 404) {
+      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: [] };
+      return;
+    }
 
+    if (res.statusCode !== 200) {
+      throw new Error(`Failed to load registry: ${res.statusCode}`);
+    }
+
+    const registry = JSON.parse(res.body);
     context.res = {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -36,20 +43,28 @@ module.exports = async function (context, req) {
     };
 
   } catch (err) {
-    // If blob doesn't exist yet, return empty registry gracefully
-    if (err.statusCode === 404 || err.code === 'BlobNotFound') {
-      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: [] };
-      return;
-    }
-    context.log.error('[registry] Error:', err.message);
+    context.log.error('[registry]', err.message);
     context.res = { status: 500, body: { error: err.message } };
   }
 };
 
-async function streamToString(readable) {
-  const chunks = [];
-  for await (const chunk of readable) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks).toString('utf-8');
+function blobGet(host, path) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: host,
+      path,
+      method: 'GET',
+      headers: {
+        'x-ms-date':    new Date().toUTCString(),
+        'x-ms-version': '2020-04-08'
+      }
+    };
+    const req = https.request(options, res => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => resolve({ statusCode: res.statusCode, body }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
 }
