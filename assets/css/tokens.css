@@ -30,7 +30,7 @@
   --color-text-muted:     #888888;
   --color-text-on-dark:   var(--white);
   --color-text-on-red:    var(--white);
-  --color-link:           var(--red-bright);
+  --color-link:           var(--red-primary);
 
   /* --- Typography --- */
   --font-family:    'Inter', 'Helvetica Neue', Arial, sans-serif;

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard Viewer — 10 Federal</title>
   <link rel="stylesheet" href="assets/css/viewer.css">
+  <link rel="icon" type="image/svg+xml" href="assets/img/10fed-favicon.svg">
   <link rel="icon" type="image/png" href="assets/img/10fed-favicon.png">
 </head>
 <body>
@@ -29,11 +30,12 @@
 
     <div class="viewer-divider" aria-hidden="true"></div>
 
-    <!-- Dashboard title (filled by viewer.js) -->
-    <h1 id="viewer-title" class="viewer-title">Loading…</h1>
-
-    <!-- Category label (filled by viewer.js) -->
-    <span id="viewer-category" class="viewer-category"></span>
+    <!-- Breadcrumb: Category › Dashboard Title (filled by viewer.js) -->
+    <nav id="viewer-breadcrumb" class="viewer-breadcrumb" aria-label="Dashboard location">
+      <span id="viewer-category" class="viewer-bc-category"></span>
+      <span class="viewer-bc-sep" aria-hidden="true">›</span>
+      <h1 id="viewer-title" class="viewer-bc-title">Loading…</h1>
+    </nav>
 
     <!-- Open in new tab button (filled by viewer.js) -->
     <a

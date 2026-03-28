@@ -53,25 +53,18 @@ export function createCard(entry) {
   article.dataset.id = entry.id;
   article.dataset.category = entry.category || '';
 
-  // Thumbnail: real image or CSS placeholder
-  const thumbHtml = entry.thumbnail
-    ? `<img class="card-thumb" src="${entry.thumbnail}" alt="${entry.title} preview" loading="lazy">`
-    : `<div class="card-thumb card-thumb--placeholder cat-${categoryClass(entry.category)}" aria-hidden="true">
-         <span class="card-thumb-label">${(entry.category || 'Dashboard').toUpperCase()}</span>
-       </div>`;
-
-  // Tags
+  // Tags — max 3
   const tagsHtml = (entry.tags || [])
-    .slice(0, 4) // Show max 4 tags on card
+    .slice(0, 3)
     .map(tag => `<span class="card-tag">${tag}</span>`)
     .join('');
 
   article.innerHTML = `
-    ${thumbHtml}
+    <div class="card-accent cat-${categoryClass(entry.category)}" aria-hidden="true"></div>
     <div class="card-body">
-      <div class="card-meta-top">
-        <span class="card-category">${entry.category || 'Uncategorized'}</span>
-        ${entry.openInNewTab ? '<span class="card-badge-newtab" title="Opens in new tab">↗</span>' : ''}
+      <div class="card-header-row">
+        <span class="card-category-badge">${entry.category || 'Uncategorized'}</span>
+        ${entry.openInNewTab ? '<span class="card-newtab-badge" title="Opens in new tab">↗ New Tab</span>' : ''}
       </div>
       <h2 class="card-title">${entry.title}</h2>
       <p class="card-description">${entry.description || ''}</p>
@@ -149,13 +142,11 @@ function createCategoryCard(category, count, onClick) {
   article.dataset.category = category;
 
   article.innerHTML = `
-    <div class="card-thumb card-thumb--placeholder cat-${categoryClass(category)}" aria-hidden="true">
-      <span class="card-thumb-label">${category.toUpperCase()}</span>
-    </div>
+    <div class="card-accent cat-${categoryClass(category)}" aria-hidden="true"></div>
     <div class="card-body">
-      <div class="card-meta-top">
-        <span class="card-category">${category}</span>
-        <svg class="category-card-arrow" width="16" height="16" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+      <div class="card-header-row">
+        <span class="card-category-badge">${category}</span>
+        <svg class="category-card-arrow" width="14" height="14" fill="none" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
