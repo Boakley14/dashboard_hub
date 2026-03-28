@@ -1090,6 +1090,13 @@ body.layout-sidebar .nav-layout-btn {
   color: var(--color-primary);
 }
 
+/* Ensure icon stays visible (white) when hovering in sidebar-active state.
+   body.layout-sidebar .nav-layout-btn has higher specificity than
+   .nav-layout-btn:hover, so this combined rule is needed to override. */
+body.layout-sidebar .nav-layout-btn:hover {
+  color: var(--white);
+}
+
 /* ---- Responsive ------------------------------------------- */
 @media (max-width: 640px) {
   .nav { padding: 0 var(--space-4); gap: var(--space-3); }

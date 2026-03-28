@@ -160,10 +160,15 @@ function initSearch() {
 
 // ---- Hub title --------------------------------------------
 function initHubTitle() {
-  const el = document.getElementById('hub-title');
-  if (!el) return;
   const name = localStorage.getItem('hub-name') || 'Dashboard Hub';
-  el.textContent = name;
+
+  const h1 = document.getElementById('hub-title');
+  if (h1) h1.textContent = name;
+
+  // Show the name in the sidebar header too (visible in sidebar mode)
+  const sidebarTitle = document.querySelector('.sidebar-title');
+  if (sidebarTitle) sidebarTitle.textContent = name;
+
   document.title = `10 Federal — ${name}`;
 }
 
