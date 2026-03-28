@@ -109,19 +109,22 @@ function initSearch() {
 async function init() {
   showSpinner();
 
-  registry = await loadRegistry();
+  try {
+    registry = await loadRegistry();
 
-  // Pre-apply deep-link category filter from URL
-  const urlCat = getParam('category');
-  if (urlCat) activeFilters.category = urlCat;
+    // Pre-apply deep-link category filter from URL
+    const urlCat = getParam('category');
+    if (urlCat) activeFilters.category = urlCat;
 
-  const categories = extractCategories(registry);
-  buildFilterBar(categories);
-  initSearch();
-
-  hideSpinner();
-  show('card-grid');
-  applyFilters();
+    const categories = extractCategories(registry);
+    buildFilterBar(categories);
+    initSearch();
+    applyFilters();
+  } finally {
+    // Always hide spinner and show grid, even if something above threw
+    hideSpinner();
+    show('card-grid');
+  }
 }
 
 init();

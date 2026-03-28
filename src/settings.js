@@ -170,6 +170,70 @@ $('publish-form').addEventListener('submit', async e => {
   }
 });
 
+// ---- Manage dashboards -------------------------------------
+const manageList  = $('manage-list');
+const manageAlert = $('manage-alert');
+
+function showManageAlert(type, html) {
+  manageAlert.className = `alert alert-${type}`;
+  manageAlert.innerHTML = html;
+  manageAlert.hidden = false;
+}
+
+async function loadManageList() {
+  try {
+    const registry = await loadRegistry();
+    if (!registry.length) {
+      manageList.innerHTML = `<p style="color:var(--color-text-muted);font-size:var(--font-size-sm)">No dashboards published yet.</p>`;
+      return;
+    }
+    manageList.innerHTML = registry.map(d => `
+      <div class="manage-row" id="manage-row-${d.id}" style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) 0;border-bottom:1px solid var(--color-border);">
+        <div>
+          <div style="font-size:var(--font-size-sm);font-weight:var(--font-weight-medium);color:var(--color-text-heading)">${d.title}</div>
+          <div style="font-size:var(--font-size-xs);color:var(--color-text-muted)">${d.category} &mdash; ${d.filename}</div>
+        </div>
+        <button class="btn-danger" data-id="${d.id}" data-filename="${d.filename}" onclick="deleteDashboard(this)">Delete</button>
+      </div>
+    `).join('');
+  } catch {
+    manageList.innerHTML = `<p style="color:var(--color-text-muted);font-size:var(--font-size-sm)">Could not load dashboard list.</p>`;
+  }
+}
+
+window.deleteDashboard = async function (btn) {
+  const { id, filename } = btn.dataset;
+  if (!confirm(`Delete "${id}"? This cannot be undone.`)) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+
+  try {
+    const res = await fetch('/api/delete', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ id, filename })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Server error ${res.status}`);
+    }
+
+    // Remove the row from the UI
+    document.getElementById(`manage-row-${id}`)?.remove();
+    if (!manageList.querySelector('.manage-row')) {
+      manageList.innerHTML = `<p style="color:var(--color-text-muted);font-size:var(--font-size-sm)">No dashboards published yet.</p>`;
+    }
+    showManageAlert('success', `<div><strong>${id}</strong> deleted successfully.</div>`);
+
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+    showManageAlert('error', `<div><strong>Delete failed:</strong> ${err.message}</div>`);
+  }
+};
+
 // ---- Reset form --------------------------------------------
 function resetForm() {
   $('publish-form').reset();
@@ -185,3 +249,4 @@ $('btn-reset').addEventListener('click', () => { hideAlert(); resetForm(); });
 // ---- Init --------------------------------------------------
 inputDate.value = todayIso();
 loadCategorySuggestions();
+loadManageList();
