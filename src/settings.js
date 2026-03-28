@@ -4,7 +4,7 @@
  */
 
 import { applyTheme, applyNavColor, toggleTheme, getTheme,
-         setNavColor, getNavColor }           from './modules/theme.js';
+         setNavColor, getNavColor }            from './modules/theme.js';
 import { slugify, todayIso, readFileAsText,
          validateForm, buildEntry }           from './modules/admin-form.js';
 import { loadRegistry }                       from './modules/registry.js';
@@ -32,7 +32,7 @@ function initTabs() {
   tabs.forEach(t => t.addEventListener('click', () => activateTab(t.dataset.tab)));
 
   // Restore last active tab
-  const saved = localStorage.getItem(LS_TAB) ?? 'appearance';
+  const saved = localStorage.getItem(LS_TAB) ?? 'manage';
   activateTab(saved);
 }
 
@@ -46,46 +46,69 @@ function initThemeToggle() {
   });
 }
 
-// ---- Appearance: nav bar color swatches --------------------
-const NAV_COLORS = [
-  { label: 'Midnight',  hex: '#0A0A0A' },
-  { label: 'Black',     hex: '#000000' },
-  { label: 'Brand Red', hex: '#C52127' },
-  { label: 'Deep Red',  hex: '#980000' },
-  { label: 'Dark Gray', hex: '#1C1C1C' },
-  { label: 'Charcoal',  hex: '#2E2E2E' },
-  { label: 'Navy',      hex: '#0F172A' },
-  { label: 'Forest',    hex: '#14322A' },
-];
+// ---- Appearance: nav bar color picker ----------------------
+const DEFAULT_NAV_COLORS = ['#0a0a0a','#000000','#c52127','#980000','#1c1c1c','#2e2e2e','#0f172a','#14322a'];
+const LS_NAV_COLORS_SAVED = 'hub-nav-colors-saved';
 
-function initNavColorSwatches() {
-  const container = $('nav-color-swatches');
-  if (!container) return;
+function getSavedNavColors() {
+  try { return JSON.parse(localStorage.getItem(LS_NAV_COLORS_SAVED)) ?? DEFAULT_NAV_COLORS; }
+  catch { return [...DEFAULT_NAV_COLORS]; }
+}
+function setSavedNavColors(colors) {
+  localStorage.setItem(LS_NAV_COLORS_SAVED, JSON.stringify(colors));
+}
 
-  const current = getNavColor();
+function initNavColorPicker() {
+  const picker    = $('nav-color-picker');
+  const saveBtn   = $('btn-save-nav-color');
+  const container = $('saved-nav-colors');
+  if (!picker || !saveBtn || !container) return;
 
-  container.innerHTML = NAV_COLORS.map(({ label, hex }) => `
-    <button type="button"
-      class="nav-color-swatch${hex === current ? ' active' : ''}"
-      data-hex="${hex}"
-      title="${label}"
-      style="background:${hex}"
-      aria-label="${label}"
-      aria-pressed="${hex === current}"
-    >
-      <span class="swatch-check" aria-hidden="true">✓</span>
-    </button>
-  `).join('');
+  picker.value = getNavColor().toLowerCase();
 
-  container.querySelectorAll('.nav-color-swatch').forEach(sw => {
-    sw.addEventListener('click', () => {
-      setNavColor(sw.dataset.hex);
-      container.querySelectorAll('.nav-color-swatch').forEach(s => {
-        s.classList.toggle('active', s === sw);
-        s.setAttribute('aria-pressed', String(s === sw));
+  function renderSwatches() {
+    const colors = getSavedNavColors();
+    const cur    = getNavColor().toLowerCase();
+    container.innerHTML = colors.map((hex, i) => `
+      <button type="button" class="saved-color-btn${hex === cur ? ' active' : ''}"
+        data-hex="${hex}" data-index="${i}"
+        style="background:${hex}" title="${hex}" aria-label="Color ${hex}"
+      ><span class="saved-color-remove" data-index="${i}" aria-hidden="true">×</span></button>
+    `).join('');
+
+    container.querySelectorAll('.saved-color-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const removeEl = e.target.closest('.saved-color-remove');
+        if (removeEl) {
+          e.stopPropagation();
+          const colors = getSavedNavColors();
+          colors.splice(parseInt(removeEl.dataset.index), 1);
+          setSavedNavColors(colors);
+          renderSwatches();
+          return;
+        }
+        picker.value = btn.dataset.hex;
+        setNavColor(btn.dataset.hex);
+        renderSwatches();
       });
     });
+  }
+
+  picker.addEventListener('input', () => {
+    setNavColor(picker.value);
+    renderSwatches();
   });
+
+  saveBtn.addEventListener('click', () => {
+    const hex    = picker.value.toLowerCase();
+    const colors = getSavedNavColors();
+    if (!colors.includes(hex)) { colors.push(hex); setSavedNavColors(colors); }
+    renderSwatches();
+    saveBtn.textContent = 'Saved!';
+    setTimeout(() => { saveBtn.textContent = 'Save color'; }, 1500);
+  });
+
+  renderSwatches();
 }
 
 // ---- Publish form ------------------------------------------
@@ -304,7 +327,7 @@ function initHubName() {
 // ---- Init --------------------------------------------------
 initTabs();
 initThemeToggle();
-initNavColorSwatches();
+initNavColorPicker();
 initHubName();
 inputDate.value = todayIso();
 loadCategorySuggestions();

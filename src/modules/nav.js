@@ -183,6 +183,7 @@ function renderExpandableCategories(registry) {
     const chevron = document.createElement('span');
     chevron.className = 'sidebar-chevron';
     chevron.setAttribute('aria-hidden', 'true');
+    chevron.innerHTML = `<svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
     const labelEl = document.createElement('span');
     labelEl.className = 'sidebar-item-label';
@@ -211,15 +212,10 @@ function renderExpandableCategories(registry) {
       btn.type = 'button';
       btn.dataset.id = entry.id;
 
-      const dot = document.createElement('span');
-      dot.className = 'sidebar-item-dot';
-      dot.setAttribute('aria-hidden', 'true');
-
       const lbl = document.createElement('span');
       lbl.className = 'sidebar-item-label';
       lbl.textContent = entry.title;
 
-      btn.appendChild(dot);
       btn.appendChild(lbl);
 
       btn.addEventListener('click', () => {

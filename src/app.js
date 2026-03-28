@@ -95,9 +95,20 @@ async function handleCardEdit(entry, action, updates) {
   }
 }
 
+// ---- Category card edit handler ---------------------------
+function handleCategoryEdit(category, accentColor) {
+  const key = `hub-cat-color-${category}`;
+  if (accentColor === null) {
+    localStorage.removeItem(key);
+  } else {
+    localStorage.setItem(key, accentColor);
+  }
+  applyFilters();
+}
+
 // ---- Render cycle -----------------------------------------
 function applyFilters() {
-  const hasSearch = activeFilters.query.trim().length > 0;
+  const hasSearch  = activeFilters.query.trim().length > 0;
   const categories = extractCategories(registry);
   const editOpts   = { onEdit: handleCardEdit, categories };
 
@@ -118,7 +129,7 @@ function applyFilters() {
       navController?.setActiveCategory(cat);
       updateBreadcrumb(cat);
       applyFilters();
-    });
+    }, handleCategoryEdit);
     updateResultCount(categories.length, 'category');
     updateBreadcrumb(null);
     registry.length === 0

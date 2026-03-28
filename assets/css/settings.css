@@ -118,42 +118,91 @@ body {
 
 .tab-panel { /* visible by default; JS toggles hidden attribute */ }
 
-/* ---- Nav-color swatch row --------------------------------- */
-.nav-color-swatches {
+/* ---- Nav-color picker ------------------------------------ */
+.nav-color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+#nav-color-picker {
+  width: 48px;
+  height: 36px;
+  padding: 2px 3px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  background: none;
+  cursor: pointer;
+}
+
+.btn-secondary-sm {
+  padding: var(--space-1) var(--space-3);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  background: none;
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.btn-secondary-sm:hover {
+  border-color: var(--color-primary);
+  background: var(--color-surface-alt);
+}
+
+.saved-colors-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-2);
+}
+
+.saved-nav-colors {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
+  gap: var(--space-2);
 }
 
-.nav-color-swatch {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--border-radius-md);
+.saved-color-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--border-radius-sm);
   border: 2px solid transparent;
   cursor: pointer;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
   position: relative;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+  flex-shrink: 0;
 }
-
-.nav-color-swatch:hover { transform: scale(1.1); }
-
-.nav-color-swatch.active {
+.saved-color-btn:hover { transform: scale(1.12); }
+.saved-color-btn.active {
   border-color: var(--white);
   box-shadow: 0 0 0 2px var(--color-primary);
 }
 
-.nav-color-swatch .swatch-check {
+.saved-color-remove {
   display: none;
   position: absolute;
-  inset: 0;
+  top: -5px;
+  right: -5px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-size: 14px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
 }
-
-.nav-color-swatch.active .swatch-check { display: flex; }
+.saved-color-btn:hover .saved-color-remove { display: flex; }
 
 /* form-label and form-hint used in Appearance tab */
 .form-label {

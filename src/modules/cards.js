@@ -224,46 +224,127 @@ export function renderCards(entries, opts = {}) {
   entries.forEach(entry => grid.appendChild(createCard(entry, opts)));
 }
 
+// ---- Category accent color (localStorage, no API needed) ---
+function getCatAccent(category) {
+  return localStorage.getItem(`hub-cat-color-${category}`) ?? null;
+}
+
 /**
  * Render category "folder" cards — one card per category.
  */
-export function renderCategoryCards(categories, registry, onCategoryClick) {
+export function renderCategoryCards(categories, registry, onCategoryClick, onCategoryEdit) {
   const grid = document.getElementById('card-grid');
   if (!grid) return;
   grid.innerHTML = '';
   categories.forEach(cat => {
     const count = registry.filter(d => d.category === cat).length;
-    grid.appendChild(createCategoryCard(cat, count, onCategoryClick));
+    grid.appendChild(createCategoryCard(cat, count, onCategoryClick, onCategoryEdit));
   });
 }
 
-function createCategoryCard(category, count, onClick) {
+function createCategoryCard(category, count, onClick, onEdit) {
   const article = document.createElement('article');
   article.className = 'dashboard-card category-card';
   article.dataset.category = category;
 
+  const catAccent   = getCatAccent(category);
+  const accentStyle = catAccent ? ` style="background:${catAccent}"` : '';
+  const accentClass = catAccent ? 'card-accent' : `card-accent cat-${categoryClass(category)}`;
+  const editBtnHtml = onEdit
+    ? `<button class="card-edit-btn" type="button" title="Edit card" aria-label="Edit ${category}">⋮</button>`
+    : '';
+
   article.innerHTML = `
-    <div class="card-accent cat-${categoryClass(category)}" aria-hidden="true"></div>
+    <div class="${accentClass}"${accentStyle} aria-hidden="true"></div>
     <div class="card-body">
       <div class="card-header-row">
         <span class="card-category-badge">${category}</span>
-        <svg class="category-card-arrow" width="14" height="14" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <div class="card-header-actions">
+          ${editBtnHtml}
+        </div>
       </div>
       <h2 class="card-title">${category}</h2>
       <p class="card-description">${count} dashboard${count !== 1 ? 's' : ''}</p>
     </div>
   `;
 
+  if (onEdit) {
+    const panel = _buildCategoryEditPanel(category, catAccent, onEdit, article);
+    article.appendChild(panel);
+
+    const editBtn = article.querySelector('.card-edit-btn');
+    editBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const open = !panel.hidden;
+      panel.hidden = open;
+      article.classList.toggle('card--editing', !open);
+    });
+  }
+
   article.setAttribute('tabindex', '0');
   article.setAttribute('role', 'button');
   article.setAttribute('aria-label', `Browse ${category} — ${count} dashboard${count !== 1 ? 's' : ''}`);
 
-  article.addEventListener('click', () => onClick(category));
+  article.addEventListener('click', e => {
+    if (e.target.closest('.card-edit-btn, .card-edit-panel')) return;
+    onClick(category);
+  });
   article.addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); article.click(); }
   });
 
   return article;
+}
+
+function _buildCategoryEditPanel(category, currentAccent, onEdit, article) {
+  const panel = document.createElement('div');
+  panel.className = 'card-edit-panel';
+  panel.hidden = true;
+
+  let pendingAccent = currentAccent;
+
+  const swatchesHtml = ACCENT_COLORS.map(({ label, hex }) => {
+    const isActive = (pendingAccent ?? _categoryHex(category)) === hex;
+    return `<button type="button" class="color-swatch${isActive ? ' active' : ''}"
+      data-hex="${hex}" title="${label}" style="background:${hex}" aria-label="${label}"></button>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="card-edit-row">
+      <label class="card-edit-label">Accent color</label>
+      <div class="color-swatches">${swatchesHtml}</div>
+    </div>
+    <div class="card-edit-actions">
+      <button type="button" class="btn-card-save">Save</button>
+      <button type="button" class="btn-card-reset">Reset</button>
+      <button type="button" class="btn-card-cancel">Cancel</button>
+    </div>
+  `;
+
+  panel.querySelectorAll('.color-swatch').forEach(sw => {
+    sw.addEventListener('click', e => {
+      e.stopPropagation();
+      pendingAccent = sw.dataset.hex;
+      panel.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+      sw.classList.add('active');
+    });
+  });
+
+  panel.querySelector('.btn-card-save').addEventListener('click', e => {
+    e.stopPropagation();
+    onEdit(category, pendingAccent);
+  });
+
+  panel.querySelector('.btn-card-reset').addEventListener('click', e => {
+    e.stopPropagation();
+    onEdit(category, null);
+  });
+
+  panel.querySelector('.btn-card-cancel').addEventListener('click', e => {
+    e.stopPropagation();
+    panel.hidden = true;
+    article.classList.remove('card--editing');
+  });
+
+  return panel;
 }

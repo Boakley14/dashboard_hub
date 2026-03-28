@@ -477,6 +477,19 @@ body.layout-sidebar .hub-title-bar { display: none; }
   color: var(--white);
 }
 
+.btn-card-reset {
+  padding: var(--space-1) var(--space-3);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-sm);
+  color: var(--color-text-muted);
+  font-family: var(--font-family);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.btn-card-reset:hover { color: var(--color-text); border-color: var(--color-text-muted); }
+
 .btn-card-cancel {
   padding: var(--space-1) var(--space-3);
   background: none;
@@ -624,8 +637,8 @@ body.layout-sidebar .inline-viewer {
 .sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
-  background: var(--color-surface);
-  border-right: 1px solid var(--color-border);
+  background: var(--color-sidebar-bg);
+  border-right: 1px solid rgba(255,255,255,0.08);
   min-height: calc(100vh - var(--nav-height));
   position: sticky;
   top: var(--nav-height);
@@ -706,6 +719,12 @@ body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
   transform: rotate(180deg);
 }
 
+/* Sidebar always uses dark-scheme colors (nav color is always dark) */
+.sidebar .sidebar-header        { border-bottom-color: rgba(255,255,255,0.08); }
+.sidebar .sidebar-title         { color: rgba(255,255,255,0.4); }
+.sidebar .sidebar-collapse-btn  { color: rgba(255,255,255,0.4); }
+.sidebar .sidebar-collapse-btn:hover { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.07); }
+
 /* ---- Sidebar Nav Items ------------------------------------ */
 .sidebar-nav {
   padding: var(--space-3) 0;
@@ -723,7 +742,7 @@ body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
   background: none;
   width: 100%;
   text-align: left;
-  color: var(--color-text);
+  color: rgba(255,255,255,0.75);
   font-family: var(--font-family);
   font-size: var(--font-size-sm);
   transition: background var(--transition-fast), color var(--transition-fast);
@@ -732,13 +751,13 @@ body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
 }
 
 .sidebar-item:hover {
-  background: var(--color-surface-alt);
-  color: var(--color-text-heading);
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.95);
 }
 
 .sidebar-item.active {
   background: var(--color-primary);
-  color: var(--color-text-on-red);
+  color: #fff;
 }
 
 .sidebar-item-dot {
@@ -768,19 +787,23 @@ body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
 
 /* Chevron rotates when expanded */
 .sidebar-chevron {
-  display: inline-block;
-  font-style: normal;
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
   width: 14px;
   flex-shrink: 0;
+  color: rgba(255,255,255,0.4);
   transition: transform var(--transition-fast);
-  color: var(--color-text-muted);
 }
 
-.sidebar-chevron::before { content: '▶'; }
+.sidebar-chevron svg { transition: transform var(--transition-fast); }
 
-.category-group--expanded .sidebar-chevron {
+.category-group--expanded .sidebar-chevron svg {
   transform: rotate(90deg);
+}
+
+.sidebar-item-count {
+  color: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.08);
 }
 
 /* Dashboard count badge */

@@ -30,11 +30,13 @@ export function getTheme() {
 export function applyNavColor() {
   const color = localStorage.getItem(LS_NAV_COLOR) ?? '#0A0A0A';
   document.documentElement.style.setProperty('--color-hero-bg', color);
+  document.documentElement.style.setProperty('--color-sidebar-bg', color);
 }
 
 export function setNavColor(hex) {
   localStorage.setItem(LS_NAV_COLOR, hex);
   document.documentElement.style.setProperty('--color-hero-bg', hex);
+  document.documentElement.style.setProperty('--color-sidebar-bg', hex);
 }
 
 export function getNavColor() {
