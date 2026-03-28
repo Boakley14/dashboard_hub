@@ -364,6 +364,28 @@ a:hover { text-decoration: underline; }
   min-width: 0; /* prevents grid blowout in flex children */
 }
 
+/* In sidebar mode: lock the layout to exactly the viewport, strip padding
+   from page-body so the iframe can be truly edge-to-edge and full-height */
+body.layout-sidebar .page-layout {
+  height: calc(100vh - var(--nav-height));
+  overflow: hidden;
+}
+
+body.layout-sidebar .page-body {
+  padding: 0;
+  max-width: none;
+  height: 100%;
+  overflow: hidden;
+}
+
+body.layout-sidebar .sidebar {
+  height: 100%;
+}
+
+body.layout-sidebar .inline-viewer {
+  height: 100%;
+}
+
 /* ---- Sidebar Variables ------------------------------------ */
 :root {
   --sidebar-width:           220px;
@@ -536,9 +558,10 @@ body.layout-sidebar .sidebar--collapsed .sidebar-group-label {
 .inline-viewer {
   display: none; /* shown by body.layout-sidebar rule */
   flex-direction: column;
-  height: calc(100vh - var(--nav-height));
   width: 100%;
   overflow: hidden;
+  /* height is set to 100% by body.layout-sidebar .inline-viewer rule above,
+     which inherits from the locked page-layout and page-body heights */
 }
 
 /* Prompt: shown when no dashboard is selected */
