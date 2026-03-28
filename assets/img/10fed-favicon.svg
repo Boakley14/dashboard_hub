@@ -1,15 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <!-- Red circle, no background — transparent outside -->
+  <!-- Red circle — transparent outside, matching the actual brand mark -->
   <circle cx="50" cy="50" r="50" fill="#C52127"/>
-  <!-- White "10" in a serif display style matching the brand mark -->
+  <!-- White serif "10" — large, fills the circle like the logo -->
   <text
-    x="50" y="68"
+    x="50" y="75"
     font-family="Georgia, 'Times New Roman', Times, serif"
     font-weight="bold"
-    font-size="56"
+    font-size="68"
     fill="#FFFFFF"
     text-anchor="middle"
-    font-style="normal"
-    letter-spacing="-2"
+    letter-spacing="-3"
   >10</text>
 </svg>

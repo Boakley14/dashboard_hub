@@ -133,10 +133,13 @@
           <p>Select a dashboard from the left panel to view it here.</p>
         </div>
 
-        <!-- Bar shown when a dashboard is loaded -->
+        <!-- Bar shown when a dashboard is loaded — breadcrumb: CATEGORY → Title -->
         <div id="inline-viewer-bar" class="inline-viewer-bar" hidden>
-          <span id="inline-viewer-title" class="inline-viewer-title"></span>
-          <span id="inline-viewer-category" class="inline-viewer-category"></span>
+          <nav class="inline-viewer-breadcrumb" aria-label="Dashboard location">
+            <span id="inline-viewer-category" class="inline-viewer-bc-category"></span>
+            <span class="inline-viewer-bc-sep" aria-hidden="true">→</span>
+            <span id="inline-viewer-title" class="inline-viewer-bc-title"></span>
+          </nav>
           <a
             id="inline-viewer-newtab"
             class="inline-viewer-newtab"

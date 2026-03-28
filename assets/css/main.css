@@ -676,23 +676,39 @@ body.layout-sidebar .sidebar--collapsed .sidebar-chevron {
   flex-shrink: 0;
 }
 
-.inline-viewer-title {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-heading);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* Breadcrumb: CATEGORY → Dashboard Title */
+.inline-viewer-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.inline-viewer-category {
+.inline-viewer-bc-category {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
   color: var(--color-primary);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.10em;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.inline-viewer-bc-sep {
+  color: rgba(255,255,255,0.35);
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+}
+
+.inline-viewer-bc-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .inline-viewer-newtab {
