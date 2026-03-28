@@ -59,13 +59,30 @@ function headers(pat) {
 }
 
 /**
+ * fetch() wrapper that aborts after `ms` milliseconds.
+ * Throws a user-friendly error on timeout.
+ */
+async function fetchWithTimeout(url, options, ms = 30000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('Request timed out — GitHub API did not respond within 30 seconds.');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * GET a file from the repo. Returns { content (decoded string), sha } or null.
  * @param {string} path  - repo-relative path, e.g. "dashboards/dashboards.json"
  */
 export async function getFile(path) {
   const { owner, repo, branch, pat } = loadConfig();
   const url = `${API_BASE}/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
-  const res = await fetch(url, { headers: headers(pat) });
+  const res = await fetchWithTimeout(url, { headers: headers(pat) });
 
   if (res.status === 404) return null;
   if (!res.ok) {
@@ -99,11 +116,11 @@ export async function putFile(path, content, message, sha) {
   const body = { message, content: encoded, branch };
   if (sha) body.sha = sha;
 
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method:  'PUT',
     headers: headers(pat),
     body:    JSON.stringify(body)
-  });
+  }, 60000); // 60s for uploads — large files take longer
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
