@@ -411,6 +411,25 @@ body.layout-sidebar .hub-title-bar { display: none; }
   border-color: var(--color-primary);
 }
 
+/* Color picker + swatches row inside card edit panel */
+.card-color-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.card-color-picker {
+  width: 34px;
+  height: 26px;
+  padding: 1px 2px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--border-radius-sm);
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* Color swatches */
 .color-swatches {
   display: flex;
@@ -824,17 +843,32 @@ body.layout-sidebar .sidebar--collapsed .sidebar-chevron {
 }
 
 /* Dashboard items container — hidden until category is expanded */
+/* position:relative required for the vertical guide line pseudo-element */
 .category-group-items {
   display: none;
+  position: relative;
 }
 
 .category-group--expanded .category-group-items {
   display: block;
 }
 
-/* Dashboard items are indented under their category */
+/* Faint vertical guide line that aligns with the start of the category label.
+   Category item layout: padding-left(12px) + chevron(14px) + gap(12px) = 38px */
+.category-group-items::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--space-3) + 14px + var(--space-3));   /* 38px — category label x-position */
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255,255,255,0.10);
+  pointer-events: none;
+}
+
+/* Dashboard items indented slightly past the guide line */
 .sidebar-item--dashboard {
-  padding-left: var(--space-7, 1.75rem);
+  padding-left: calc(var(--space-3) + 14px + var(--space-3) + var(--space-2));  /* ~46px */
   font-size: var(--font-size-xs);
 }
 

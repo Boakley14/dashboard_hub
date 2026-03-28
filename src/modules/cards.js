@@ -147,6 +147,8 @@ function _buildEditPanel(entry, categories, onEdit, article) {
       data-hex="${hex}" title="${label}" style="background:${hex}" aria-label="${label}"></button>`;
   }).join('');
 
+  const initialColor = pendingAccent ?? _categoryHex(entry.category);
+
   panel.innerHTML = `
     <div class="card-edit-row">
       <label class="card-edit-label">Category</label>
@@ -154,7 +156,10 @@ function _buildEditPanel(entry, categories, onEdit, article) {
     </div>
     <div class="card-edit-row">
       <label class="card-edit-label">Accent color</label>
-      <div class="color-swatches">${swatchesHtml}</div>
+      <div class="card-color-row">
+        <input type="color" class="card-color-picker" value="${initialColor}">
+        <div class="color-swatches">${swatchesHtml}</div>
+      </div>
     </div>
     <div class="card-edit-actions">
       <button type="button" class="btn-card-save">Save</button>
@@ -163,11 +168,18 @@ function _buildEditPanel(entry, categories, onEdit, article) {
     </div>
   `;
 
+  const colorPicker = panel.querySelector('.card-color-picker');
+  colorPicker.addEventListener('input', () => {
+    pendingAccent = colorPicker.value;
+    panel.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  });
+
   // Swatch clicks
   panel.querySelectorAll('.color-swatch').forEach(sw => {
     sw.addEventListener('click', e => {
       e.stopPropagation();
       pendingAccent = sw.dataset.hex;
+      colorPicker.value = pendingAccent;
       panel.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
       sw.classList.add('active');
     });
@@ -303,8 +315,10 @@ function _buildCategoryEditPanel(category, currentAccent, onEdit, article) {
 
   let pendingAccent = currentAccent;
 
+  const initialColor = pendingAccent ?? _categoryHex(category);
+
   const swatchesHtml = ACCENT_COLORS.map(({ label, hex }) => {
-    const isActive = (pendingAccent ?? _categoryHex(category)) === hex;
+    const isActive = hex === initialColor;
     return `<button type="button" class="color-swatch${isActive ? ' active' : ''}"
       data-hex="${hex}" title="${label}" style="background:${hex}" aria-label="${label}"></button>`;
   }).join('');
@@ -312,7 +326,10 @@ function _buildCategoryEditPanel(category, currentAccent, onEdit, article) {
   panel.innerHTML = `
     <div class="card-edit-row">
       <label class="card-edit-label">Accent color</label>
-      <div class="color-swatches">${swatchesHtml}</div>
+      <div class="card-color-row">
+        <input type="color" class="card-color-picker" value="${initialColor}">
+        <div class="color-swatches">${swatchesHtml}</div>
+      </div>
     </div>
     <div class="card-edit-actions">
       <button type="button" class="btn-card-save">Save</button>
@@ -321,10 +338,17 @@ function _buildCategoryEditPanel(category, currentAccent, onEdit, article) {
     </div>
   `;
 
+  const colorPicker = panel.querySelector('.card-color-picker');
+  colorPicker.addEventListener('input', () => {
+    pendingAccent = colorPicker.value;
+    panel.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  });
+
   panel.querySelectorAll('.color-swatch').forEach(sw => {
     sw.addEventListener('click', e => {
       e.stopPropagation();
       pendingAccent = sw.dataset.hex;
+      colorPicker.value = pendingAccent;
       panel.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
       sw.classList.add('active');
     });
