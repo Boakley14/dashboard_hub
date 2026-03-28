@@ -45,26 +45,20 @@ export function mountIframe(entry) {
 
 /**
  * Called when the iframe fires its load event.
- * Verifies the content is actually accessible (catches silent embed failures).
+ *
+ * All dashboards are served from Azure Blob Storage, which is cross-origin
+ * relative to this SWA. The browser blocks contentDocument access across
+ * origins, making it impossible to inspect whether the iframe loaded real
+ * content or a 403 error page. We trust that onload = a response was
+ * received and show the iframe as-is. Genuine network failures (DNS failure,
+ * connection refused) fire onerror instead and still show the fallback UI.
+ *
+ * If dashboards appear blank: ensure the blob container has public read
+ * access (Azure Portal → Storage account → Containers → dashboards →
+ * Change access level → "Blob").
  */
-function _handleLoad(iframe, entry, src) {
-  try {
-    const doc = iframe.contentDocument;
-    if (!doc || (!doc.body && !doc.head)) {
-      // Loaded but empty — treat as failure
-      _handleError(iframe, entry, src);
-    }
-    // Otherwise: same-origin content loaded fine — nothing more to do
-  } catch (e) {
-    if (e.name === 'SecurityError') {
-      // SecurityError means the iframe is cross-origin (e.g. Azure Blob Storage).
-      // This is EXPECTED and means the content loaded successfully — the browser
-      // simply prevents us from reading its DOM. Do NOT treat as an error.
-      return;
-    }
-    // Any other error type is a genuine load failure
-    _handleError(iframe, entry, src);
-  }
+function _handleLoad(/* iframe, entry, src */) {
+  // Nothing to do — iframe is already visible, content renders on its own.
 }
 
 /**

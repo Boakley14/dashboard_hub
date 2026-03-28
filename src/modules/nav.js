@@ -93,19 +93,9 @@ function loadInlineViewer(entry) {
   ].join(' '));
   iframe.setAttribute('title', entry.title);
 
-  iframe.onload = () => {
-    try {
-      const doc = iframe.contentDocument;
-      if (!doc || (!doc.body && !doc.head)) {
-        _inlineError(iframe, fallback, entry, src);
-      }
-      // SecurityError = cross-origin success — do nothing
-    } catch (e) {
-      if (e.name !== 'SecurityError') {
-        _inlineError(iframe, fallback, entry, src);
-      }
-    }
-  };
+  // Trust onload = content received. Cross-origin blob storage prevents
+  // any contentDocument inspection — onerror handles genuine network failures.
+  iframe.onload = () => { /* content renders on its own */ };
 
   iframe.onerror = () => _inlineError(iframe, fallback, entry, src);
   iframe.src = src;
