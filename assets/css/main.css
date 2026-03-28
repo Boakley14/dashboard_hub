@@ -58,9 +58,10 @@ a:hover { text-decoration: underline; }
 }
 
 .nav-search-wrap {
-  flex: 1;
-  max-width: 480px;
-  position: relative;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: clamp(220px, 36%, 460px);
 }
 
 .nav-search {
@@ -100,6 +101,7 @@ a:hover { text-decoration: underline; }
 }
 
 .nav-welcome {
+  margin-left: auto;
   font-size: var(--font-size-xs);
   color: rgba(255,255,255,0.5);
   white-space: nowrap;
@@ -142,6 +144,22 @@ a:hover { text-decoration: underline; }
   margin-left: auto;
   margin-right: auto;
 }
+
+/* ---- Hub Title Bar ---------------------------------------- */
+.hub-title-bar {
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-5);
+}
+
+.hub-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-heading);
+  letter-spacing: 0.02em;
+}
+
+body.layout-sidebar .hub-title-bar { display: none; }
 
 /* ---- Filter Bar (category pills) -------------------------- */
 .filter-bar {

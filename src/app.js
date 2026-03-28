@@ -147,6 +147,15 @@ function initSearch() {
   }, 200));
 }
 
+// ---- Hub title --------------------------------------------
+function initHubTitle() {
+  const el = document.getElementById('hub-title');
+  if (!el) return;
+  const name = localStorage.getItem('hub-name') || 'Dashboard Hub';
+  el.textContent = name;
+  document.title = `10 Federal — ${name}`;
+}
+
 // ---- Welcome greeting -------------------------------------
 function initWelcome() {
   getFirstName().then(name => {
@@ -158,6 +167,7 @@ function initWelcome() {
 // ---- Bootstrap --------------------------------------------
 async function init() {
   showSpinner();
+  initHubTitle();
   initWelcome();
 
   try {

@@ -283,10 +283,29 @@ function resetForm() {
 
 $('btn-reset').addEventListener('click', () => { hideAlert(); resetForm(); });
 
+// ---- Hub name ----------------------------------------------
+function initHubName() {
+  const input = $('input-hub-name');
+  const btn   = $('btn-save-hub-name');
+  if (!input || !btn) return;
+  input.value = localStorage.getItem('hub-name') ?? '';
+  btn.addEventListener('click', () => {
+    const name = input.value.trim();
+    if (name) {
+      localStorage.setItem('hub-name', name);
+    } else {
+      localStorage.removeItem('hub-name');
+    }
+    btn.textContent = 'Saved!';
+    setTimeout(() => { btn.textContent = 'Save'; }, 1500);
+  });
+}
+
 // ---- Init --------------------------------------------------
 initTabs();
 initThemeToggle();
 initNavColorSwatches();
+initHubName();
 inputDate.value = todayIso();
 loadCategorySuggestions();
 loadManageList();
