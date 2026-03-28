@@ -15,12 +15,15 @@ export async function loadRegistry() {
   if (_cache) return _cache;
 
   try {
-    const res = await fetch('/api/registry');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const res = await fetch('/api/registry', { signal: controller.signal });
+    clearTimeout(timeout);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     _cache = await res.json();
     return _cache;
   } catch (err) {
-    console.error('[registry] Failed to load dashboards.json:', err);
+    console.error('[registry] Failed to load registry:', err);
     // Return empty array so the app degrades gracefully
     return [];
   }
