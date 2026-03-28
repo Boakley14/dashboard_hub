@@ -349,10 +349,199 @@ a:hover { text-decoration: underline; }
   color: var(--color-text-muted);
 }
 
+/* ---- Layout Wrapper (sidebar + main flex row) ------------- */
+.page-layout {
+  display: flex;
+  align-items: flex-start;
+  min-height: calc(100vh - var(--nav-height));
+  margin-top: var(--nav-height);
+}
+
+/* When inside .page-layout, .page-body no longer needs its own top margin */
+.page-layout .page-body {
+  margin-top: 0;
+  flex: 1;
+  min-width: 0; /* prevents grid blowout in flex children */
+}
+
+/* ---- Sidebar Variables ------------------------------------ */
+:root {
+  --sidebar-width:           220px;
+  --sidebar-collapsed-width: 48px;
+}
+
+/* ---- Sidebar ---------------------------------------------- */
+.sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  min-height: calc(100vh - var(--nav-height));
+  position: sticky;
+  top: var(--nav-height);
+  overflow: hidden;
+  transition: width var(--transition-base);
+  display: none; /* hidden by default; shown only in sidebar layout mode */
+}
+
+/* Show sidebar only when body has layout-sidebar class */
+body.layout-sidebar .sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Collapsed state: icon-only strip */
+body.layout-sidebar .sidebar--collapsed {
+  width: var(--sidebar-collapsed-width);
+}
+
+/* In sidebar mode, hide the filter pills */
+body.layout-sidebar .filter-bar {
+  display: none;
+}
+
+/* ---- Sidebar Header --------------------------------------- */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.sidebar-title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity var(--transition-base);
+}
+
+/* Hide text labels when collapsed */
+body.layout-sidebar .sidebar--collapsed .sidebar-title,
+body.layout-sidebar .sidebar--collapsed .sidebar-item-label {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-collapse-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: var(--space-1);
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.sidebar-collapse-btn:hover {
+  color: var(--color-text);
+  background: var(--color-surface-alt);
+}
+
+/* Rotate chevron to point right when sidebar is collapsed */
+body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
+  transform: rotate(180deg);
+}
+
+/* ---- Sidebar Nav Items ------------------------------------ */
+.sidebar-nav {
+  padding: var(--space-3) 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  transition: background var(--transition-fast), color var(--transition-fast);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebar-item:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text-heading);
+}
+
+.sidebar-item.active {
+  background: var(--color-primary);
+  color: var(--color-text-on-red);
+}
+
+.sidebar-item-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.sidebar-item.active .sidebar-item-dot {
+  opacity: 1;
+}
+
+.sidebar-item-label {
+  transition: opacity var(--transition-base);
+}
+
+/* ---- Layout Toggle Button (top nav) ----------------------- */
+.nav-layout-btn {
+  background: none;
+  border: 1.5px solid rgba(255,255,255,0.2);
+  border-radius: var(--border-radius-md);
+  color: rgba(255,255,255,0.75);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: var(--space-2);
+  flex-shrink: 0;
+  transition: border-color var(--transition-fast), color var(--transition-fast),
+              background var(--transition-fast);
+}
+
+.nav-layout-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--white);
+  background: var(--color-primary);
+}
+
+/* Highlight toggle button when sidebar is active */
+body.layout-sidebar .nav-layout-btn {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 /* ---- Responsive ------------------------------------------- */
 @media (max-width: 640px) {
   .nav { padding: 0 var(--space-4); gap: var(--space-3); }
   .nav-logo-text { display: none; }
   .page-body { padding: var(--space-4) var(--space-4) var(--space-10); }
   .card-grid { grid-template-columns: 1fr; }
+
+  /* Always hide sidebar on mobile — not usable on small screens */
+  body.layout-sidebar .sidebar { display: none; }
+  /* Always show filter pills on mobile */
+  body.layout-sidebar .filter-bar { display: flex; }
+  /* Hide layout toggle button on mobile */
+  .nav-layout-btn { display: none; }
 }

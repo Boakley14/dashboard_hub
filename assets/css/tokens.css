@@ -86,3 +86,10 @@
   --cat-marketing:  #F14F4D;
   --cat-hr:         #6B6B6B;
 }
+
+/* Global normalization: ensure the HTML `hidden` attribute always wins.
+   Without this, explicit CSS display values (e.g. .spinner { display: flex })
+   override the browser's default [hidden] { display: none }, causing
+   elements that are programmatically hidden via el.hidden = true to stay
+   visible. This rule is placed in tokens.css so it applies to every page. */
+[hidden] { display: none !important; }

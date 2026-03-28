@@ -4,11 +4,23 @@
  * Single fetch call — all other modules import from here.
  */
 
+/**
+ * Sentinel error class so callers can distinguish a registry load
+ * failure from other unexpected errors.
+ */
+export class RegistryLoadError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'RegistryLoadError';
+  }
+}
+
 let _cache = null;
 
 /**
- * Loads the dashboard registry from dashboards/dashboards.json.
+ * Loads the dashboard registry from /api/registry.
  * Returns cached result on subsequent calls.
+ * Throws RegistryLoadError if the fetch fails or returns a non-OK status.
  * @returns {Promise<Array>} Array of dashboard entry objects
  */
 export async function loadRegistry() {
@@ -19,13 +31,15 @@ export async function loadRegistry() {
     const timeout = setTimeout(() => controller.abort(), 15000);
     const res = await fetch('/api/registry', { signal: controller.signal });
     clearTimeout(timeout);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new RegistryLoadError(`HTTP ${res.status}`);
     _cache = await res.json();
     return _cache;
   } catch (err) {
     console.error('[registry] Failed to load registry:', err);
-    // Return empty array so the app degrades gracefully
-    return [];
+    // Re-throw as RegistryLoadError so app.js can show the right UI
+    throw err instanceof RegistryLoadError
+      ? err
+      : new RegistryLoadError(err.message);
   }
 }
 

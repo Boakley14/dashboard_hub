@@ -1,16 +1,19 @@
 /**
  * app.js — Hub home page orchestrator (index.html)
- * Wires together: registry → filters → cards → UI events
+ * Wires together: registry → filters → cards → navigation → UI events
  */
 
-import { loadRegistry }                        from './modules/registry.js';
-import { filterDashboards, extractCategories } from './modules/filters.js';
-import { renderCards }                         from './modules/cards.js';
-import { getParam, setParam }                  from './modules/router.js';
-import { showSpinner, hideSpinner, showEmptyState, hideEmptyState, show } from './modules/ui.js';
+import { loadRegistry, RegistryLoadError }        from './modules/registry.js';
+import { filterDashboards, extractCategories }     from './modules/filters.js';
+import { renderCards }                             from './modules/cards.js';
+import { getParam, setParam }                      from './modules/router.js';
+import { showSpinner, hideSpinner, showEmptyState,
+         hideEmptyState, showRegistryError, show } from './modules/ui.js';
+import { initNav }                                 from './modules/nav.js';
 
 // ---- State ------------------------------------------------
-let registry = [];
+let registry      = [];
+let navController = null;
 let activeFilters = {
   query:    '',
   category: null,
@@ -31,7 +34,10 @@ function applyFilters() {
   updateResultCount(filtered.length);
 
   if (filtered.length === 0) {
-    showEmptyState('No dashboards match your search.');
+    const msg = registry.length === 0
+      ? 'No dashboards yet — publish one from Settings.'
+      : 'No dashboards match your search.';
+    showEmptyState(msg);
   } else {
     hideEmptyState();
   }
@@ -51,6 +57,7 @@ function buildFilterBar(categories) {
     activeFilters.category = null;
     setParam('category', null);
     updateActivePill(bar, 'All');
+    navController?.setActiveCategory(null);
     applyFilters();
   });
   bar.appendChild(allPill);
@@ -62,6 +69,7 @@ function buildFilterBar(categories) {
       activeFilters.category = cat;
       setParam('category', cat);
       updateActivePill(bar, cat);
+      navController?.setActiveCategory(cat);
       applyFilters();
     });
     bar.appendChild(pill);
@@ -118,8 +126,30 @@ async function init() {
 
     const categories = extractCategories(registry);
     buildFilterBar(categories);
+
+    // Initialize navigation module (sidebar + layout toggle)
+    const bar = document.getElementById('filter-bar');
+    navController = initNav(categories, (cat) => {
+      activeFilters.category = cat;
+      setParam('category', cat ?? null);
+      if (bar) updateActivePill(bar, cat ?? 'All');
+      applyFilters();
+    });
+
+    // Sync sidebar to URL-preloaded category
+    if (navController && activeFilters.category) {
+      navController.setActiveCategory(activeFilters.category);
+    }
+
     initSearch();
     applyFilters();
+
+  } catch (err) {
+    if (err instanceof RegistryLoadError) {
+      showRegistryError();
+    }
+    // Unexpected non-registry errors: logged to console, finally still runs
+
   } finally {
     // Always hide spinner and show grid, even if something above threw
     hideSpinner();

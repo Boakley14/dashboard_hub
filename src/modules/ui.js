@@ -40,6 +40,22 @@ export function hideEmptyState() {
 }
 
 /**
+ * Show an error state when the registry API is unavailable.
+ * Uses innerHTML (safe — no user input interpolated).
+ */
+export function showRegistryError() {
+  const el = document.getElementById('empty-state');
+  if (!el) return;
+  el.innerHTML = `
+    <strong>Could not load dashboards.</strong><br>
+    The registry service is unavailable. Check Azure app settings
+    (AZURE_STORAGE_ACCOUNT_NAME, AZURE_STORAGE_SAS_TOKEN) or visit
+    <a href="/api/health">/api/health</a> to diagnose.
+  `;
+  el.hidden = false;
+}
+
+/**
  * Render a fallback UI inside the viewer when an iframe fails to load.
  * @param {string} message   - Human-readable explanation
  * @param {string} rawUrl    - Direct URL to the dashboard file

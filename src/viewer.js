@@ -17,7 +17,14 @@ async function init() {
     return;
   }
 
-  const entry = await findById(id);
+  let entry;
+  try {
+    entry = await findById(id);
+  } catch {
+    // Registry could not be loaded — treat as not found
+    showNotFound();
+    return;
+  }
 
   // id not in registry → show error
   if (!entry) {
