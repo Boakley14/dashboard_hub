@@ -89,23 +89,17 @@ export function createCard(entry, opts = {}) {
     </div>
   `;
 
-  // ---- Edit panel (injected after main content) ----------
+  // ---- Edit modal -----------------------------------------
   if (onEdit) {
-    const panel = _buildEditPanel(entry, categories, onEdit, article);
-    article.appendChild(panel);
-
-    const editBtn = article.querySelector('.card-edit-btn');
-    editBtn.addEventListener('click', e => {
+    article.querySelector('.card-edit-btn').addEventListener('click', e => {
       e.stopPropagation();
-      const open = panel.hidden === false;
-      panel.hidden = open;
-      article.classList.toggle('card--editing', !open);
+      _openDashboardModal(entry, categories, onEdit);
     });
   }
 
-  // ---- Navigate on click (not on edit button or panel) ---
+  // ---- Navigate on click (not on edit button) -------------
   article.addEventListener('click', e => {
-    if (e.target.closest('.card-edit-btn, .card-edit-panel')) return;
+    if (e.target.closest('.card-edit-btn')) return;
     if (entry.openInNewTab) {
       window.open(`./dashboards/${entry.filename}`, '_blank', 'noopener');
     } else {
@@ -123,33 +117,83 @@ export function createCard(entry, opts = {}) {
   return article;
 }
 
-/**
- * Build the inline edit panel for a card.
- */
-function _buildEditPanel(entry, categories, onEdit, article) {
-  const panel = document.createElement('div');
-  panel.className = 'card-edit-panel';
-  panel.hidden = true;
+// ---- Shared modal system -----------------------------------
 
-  // Current accent color (from entry or resolved from category)
-  let pendingAccent   = entry.accentColor || null;
+let _activeModal = null;
+
+function _closeModal() {
+  _activeModal?.remove();
+  _activeModal = null;
+}
+
+function _openModal({ title, subtitle, bodyHtml, onMount }) {
+  _closeModal();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'card-modal-overlay';
+  overlay.innerHTML = `
+    <div class="card-modal" role="dialog" aria-modal="true">
+      <div class="card-modal-header">
+        <div class="card-modal-heading">
+          <span class="card-modal-title">${title}</span>
+          ${subtitle ? `<span class="card-modal-subtitle">${subtitle}</span>` : ''}
+        </div>
+        <button type="button" class="card-modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="card-modal-body">${bodyHtml}</div>
+    </div>
+  `;
+
+  overlay.addEventListener('click', e => { if (e.target === overlay) _closeModal(); });
+  overlay.querySelector('.card-modal-close').addEventListener('click', _closeModal);
+
+  const onEsc = e => { if (e.key === 'Escape') { _closeModal(); document.removeEventListener('keydown', onEsc); } };
+  document.addEventListener('keydown', onEsc);
+
+  document.body.appendChild(overlay);
+  _activeModal = overlay;
+
+  onMount(overlay.querySelector('.card-modal'));
+}
+
+function _swatchesHtml(activeHex) {
+  return ACCENT_COLORS.map(({ label, hex }) =>
+    `<button type="button" class="color-swatch${hex === activeHex ? ' active' : ''}"
+      data-hex="${hex}" title="${label}" style="background:${hex}" aria-label="${label}"></button>`
+  ).join('');
+}
+
+function _wireColorPicker(modal) {
+  let pending = modal.querySelector('.card-color-picker').value;
+  const picker = modal.querySelector('.card-color-picker');
+
+  picker.addEventListener('input', () => {
+    pending = picker.value;
+    modal.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  });
+
+  modal.querySelectorAll('.color-swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      pending = sw.dataset.hex;
+      picker.value = pending;
+      modal.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+      sw.classList.add('active');
+    });
+  });
+
+  return { getPending: () => pending };
+}
+
+// ---- Dashboard card modal ----------------------------------
+function _openDashboardModal(entry, categories, onEdit) {
+  const initialColor  = entry.accentColor ?? _categoryHex(entry.category);
   let pendingCategory = entry.category || '';
 
-  // Category options
   const catOptions = categories.map(c =>
     `<option value="${c}"${c === entry.category ? ' selected' : ''}>${c}</option>`
   ).join('');
 
-  // Color swatches
-  const swatchesHtml = ACCENT_COLORS.map(({ label, hex }) => {
-    const isActive = (pendingAccent ?? _categoryHex(entry.category)) === hex;
-    return `<button type="button" class="color-swatch${isActive ? ' active' : ''}"
-      data-hex="${hex}" title="${label}" style="background:${hex}" aria-label="${label}"></button>`;
-  }).join('');
-
-  const initialColor = pendingAccent ?? _categoryHex(entry.category);
-
-  panel.innerHTML = `
+  const bodyHtml = `
     <div class="card-edit-row">
       <label class="card-edit-label">Category</label>
       <select class="card-edit-category">${catOptions}</select>
@@ -158,61 +202,42 @@ function _buildEditPanel(entry, categories, onEdit, article) {
       <label class="card-edit-label">Accent color</label>
       <div class="card-color-row">
         <input type="color" class="card-color-picker" value="${initialColor}">
-        <div class="color-swatches">${swatchesHtml}</div>
+        <div class="color-swatches">${_swatchesHtml(initialColor)}</div>
       </div>
     </div>
-    <div class="card-edit-actions">
+    <div class="card-modal-footer">
       <button type="button" class="btn-card-save">Save</button>
       <button type="button" class="btn-card-delete">Delete</button>
       <button type="button" class="btn-card-cancel">Cancel</button>
     </div>
   `;
 
-  const colorPicker = panel.querySelector('.card-color-picker');
-  colorPicker.addEventListener('input', () => {
-    pendingAccent = colorPicker.value;
-    panel.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  _openModal({
+    title: entry.title,
+    subtitle: entry.category,
+    bodyHtml,
+    onMount(modal) {
+      const { getPending } = _wireColorPicker(modal);
+      modal.querySelector('.card-edit-category')
+           .addEventListener('change', e => { pendingCategory = e.target.value; });
+
+      modal.querySelector('.btn-card-save').addEventListener('click', async () => {
+        const updates = {};
+        if (pendingCategory !== entry.category) updates.category = pendingCategory;
+        const pa = getPending();
+        if (pa !== (entry.accentColor ?? null)) updates.accentColor = pa;
+        _closeModal();
+        if (Object.keys(updates).length > 0) await onEdit(entry, 'save', updates);
+      });
+
+      modal.querySelector('.btn-card-delete').addEventListener('click', async () => {
+        _closeModal();
+        await onEdit(entry, 'delete', null);
+      });
+
+      modal.querySelector('.btn-card-cancel').addEventListener('click', _closeModal);
+    }
   });
-
-  // Swatch clicks
-  panel.querySelectorAll('.color-swatch').forEach(sw => {
-    sw.addEventListener('click', e => {
-      e.stopPropagation();
-      pendingAccent = sw.dataset.hex;
-      colorPicker.value = pendingAccent;
-      panel.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
-      sw.classList.add('active');
-    });
-  });
-
-  // Category change
-  const catSelect = panel.querySelector('.card-edit-category');
-  catSelect.addEventListener('change', () => { pendingCategory = catSelect.value; });
-
-  // Save
-  panel.querySelector('.btn-card-save').addEventListener('click', async e => {
-    e.stopPropagation();
-    const updates = {};
-    if (pendingCategory !== entry.category) updates.category = pendingCategory;
-    if (pendingAccent !== (entry.accentColor || null)) updates.accentColor = pendingAccent;
-    if (Object.keys(updates).length === 0) { panel.hidden = true; article.classList.remove('card--editing'); return; }
-    await onEdit(entry, 'save', updates);
-  });
-
-  // Delete
-  panel.querySelector('.btn-card-delete').addEventListener('click', async e => {
-    e.stopPropagation();
-    await onEdit(entry, 'delete', null);
-  });
-
-  // Cancel
-  panel.querySelector('.btn-card-cancel').addEventListener('click', e => {
-    e.stopPropagation();
-    panel.hidden = true;
-    article.classList.remove('card--editing');
-  });
-
-  return panel;
 }
 
 /** Resolve the hex that a category class maps to, for swatch pre-selection. */
@@ -281,15 +306,9 @@ function createCategoryCard(category, count, onClick, onEdit) {
   `;
 
   if (onEdit) {
-    const panel = _buildCategoryEditPanel(category, catAccent, onEdit, article);
-    article.appendChild(panel);
-
-    const editBtn = article.querySelector('.card-edit-btn');
-    editBtn.addEventListener('click', e => {
+    article.querySelector('.card-edit-btn').addEventListener('click', e => {
       e.stopPropagation();
-      const open = !panel.hidden;
-      panel.hidden = open;
-      article.classList.toggle('card--editing', !open);
+      _openCategoryModal(category, getCatAccent(category), onEdit);
     });
   }
 
@@ -298,7 +317,7 @@ function createCategoryCard(category, count, onClick, onEdit) {
   article.setAttribute('aria-label', `Browse ${category} — ${count} dashboard${count !== 1 ? 's' : ''}`);
 
   article.addEventListener('click', e => {
-    if (e.target.closest('.card-edit-btn, .card-edit-panel')) return;
+    if (e.target.closest('.card-edit-btn')) return;
     onClick(category);
   });
   article.addEventListener('keydown', e => {
@@ -308,67 +327,39 @@ function createCategoryCard(category, count, onClick, onEdit) {
   return article;
 }
 
-function _buildCategoryEditPanel(category, currentAccent, onEdit, article) {
-  const panel = document.createElement('div');
-  panel.className = 'card-edit-panel';
-  panel.hidden = true;
+// ---- Category card modal -----------------------------------
+function _openCategoryModal(category, currentAccent, onEdit) {
+  const initialColor = currentAccent ?? _categoryHex(category);
 
-  let pendingAccent = currentAccent;
-
-  const initialColor = pendingAccent ?? _categoryHex(category);
-
-  const swatchesHtml = ACCENT_COLORS.map(({ label, hex }) => {
-    const isActive = hex === initialColor;
-    return `<button type="button" class="color-swatch${isActive ? ' active' : ''}"
-      data-hex="${hex}" title="${label}" style="background:${hex}" aria-label="${label}"></button>`;
-  }).join('');
-
-  panel.innerHTML = `
+  const bodyHtml = `
     <div class="card-edit-row">
       <label class="card-edit-label">Accent color</label>
       <div class="card-color-row">
         <input type="color" class="card-color-picker" value="${initialColor}">
-        <div class="color-swatches">${swatchesHtml}</div>
+        <div class="color-swatches">${_swatchesHtml(initialColor)}</div>
       </div>
     </div>
-    <div class="card-edit-actions">
+    <div class="card-modal-footer">
       <button type="button" class="btn-card-save">Save</button>
       <button type="button" class="btn-card-reset">Reset</button>
       <button type="button" class="btn-card-cancel">Cancel</button>
     </div>
   `;
 
-  const colorPicker = panel.querySelector('.card-color-picker');
-  colorPicker.addEventListener('input', () => {
-    pendingAccent = colorPicker.value;
-    panel.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
-  });
+  _openModal({
+    title: category,
+    subtitle: 'Category',
+    bodyHtml,
+    onMount(modal) {
+      const { getPending } = _wireColorPicker(modal);
 
-  panel.querySelectorAll('.color-swatch').forEach(sw => {
-    sw.addEventListener('click', e => {
-      e.stopPropagation();
-      pendingAccent = sw.dataset.hex;
-      colorPicker.value = pendingAccent;
-      panel.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
-      sw.classList.add('active');
-    });
+      modal.querySelector('.btn-card-save').addEventListener('click', () => {
+        _closeModal(); onEdit(category, getPending());
+      });
+      modal.querySelector('.btn-card-reset').addEventListener('click', () => {
+        _closeModal(); onEdit(category, null);
+      });
+      modal.querySelector('.btn-card-cancel').addEventListener('click', _closeModal);
+    }
   });
-
-  panel.querySelector('.btn-card-save').addEventListener('click', e => {
-    e.stopPropagation();
-    onEdit(category, pendingAccent);
-  });
-
-  panel.querySelector('.btn-card-reset').addEventListener('click', e => {
-    e.stopPropagation();
-    onEdit(category, null);
-  });
-
-  panel.querySelector('.btn-card-cancel').addEventListener('click', e => {
-    e.stopPropagation();
-    panel.hidden = true;
-    article.classList.remove('card--editing');
-  });
-
-  return panel;
 }
