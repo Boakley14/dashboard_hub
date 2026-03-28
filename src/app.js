@@ -1,23 +1,30 @@
 /**
  * app.js — Hub home page orchestrator (index.html)
- * Wires together: registry → filters → cards → navigation → UI events
+ * Wires together: registry → view state → cards → navigation → UI events
+ *
+ * Two-level card navigation:
+ *   Level 1 — category folder cards (default)
+ *   Level 2 — dashboard cards within a selected category
+ *
+ * Search always shows flat dashboard results across all categories.
  */
 
-import { loadRegistry, RegistryLoadError }        from './modules/registry.js';
-import { filterDashboards, extractCategories }     from './modules/filters.js';
-import { renderCards }                             from './modules/cards.js';
-import { getParam, setParam }                      from './modules/router.js';
+import { loadRegistry, RegistryLoadError }           from './modules/registry.js';
+import { filterDashboards, extractCategories }        from './modules/filters.js';
+import { renderCards, renderCategoryCards }           from './modules/cards.js';
+import { getParam, setParam }                         from './modules/router.js';
 import { showSpinner, hideSpinner, showEmptyState,
-         hideEmptyState, showRegistryError, show } from './modules/ui.js';
-import { initNav }                                 from './modules/nav.js';
+         hideEmptyState, showRegistryError, show }    from './modules/ui.js';
+import { initNav }                                    from './modules/nav.js';
 
 // ---- State ------------------------------------------------
-let registry      = [];
-let navController = null;
-let activeFilters = {
-  query:    '',
-  category: null,
-  tags:     new Set()
+let registry           = [];
+let navController      = null;
+let viewLevel          = 'categories'; // 'categories' | 'dashboards'
+let activeCategoryView = null;         // category name when viewLevel === 'dashboards'
+let activeFilters      = {
+  query: '',
+  tags:  new Set()
 };
 
 // ---- Debounce helper --------------------------------------
@@ -26,75 +33,87 @@ function debounce(fn, ms) {
   return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
 }
 
-// ---- Render cycle -----------------------------------------
-function applyFilters() {
-  const filtered = filterDashboards(registry, activeFilters);
+// ---- Breadcrumb -------------------------------------------
+function updateBreadcrumb(category) {
+  const el = document.getElementById('breadcrumb');
+  if (!el) return;
 
-  renderCards(filtered);
-  updateResultCount(filtered.length);
-
-  if (filtered.length === 0) {
-    const msg = registry.length === 0
-      ? 'No dashboards yet — publish one from Settings.'
-      : 'No dashboards match your search.';
-    showEmptyState(msg);
-  } else {
-    hideEmptyState();
+  if (!category) {
+    el.hidden = true;
+    el.innerHTML = '';
+    return;
   }
-}
 
-// ---- Filter bar (category pills) --------------------------
-function buildFilterBar(categories) {
-  const bar = document.getElementById('filter-bar');
-  if (!bar) return;
+  el.hidden = false;
+  el.innerHTML = `
+    <button class="breadcrumb-back" type="button">← All Categories</button>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-current">${category}</span>
+  `;
 
-  // Remove any existing pills (but keep the label)
-  bar.querySelectorAll('.pill').forEach(p => p.remove());
-
-  // "All" pill
-  const allPill = createPill('All', !activeFilters.category);
-  allPill.addEventListener('click', () => {
-    activeFilters.category = null;
+  el.querySelector('.breadcrumb-back').addEventListener('click', () => {
+    viewLevel          = 'categories';
+    activeCategoryView = null;
     setParam('category', null);
-    updateActivePill(bar, 'All');
     navController?.setActiveCategory(null);
     applyFilters();
-  });
-  bar.appendChild(allPill);
-
-  // One pill per category
-  categories.forEach(cat => {
-    const pill = createPill(cat, activeFilters.category === cat);
-    pill.addEventListener('click', () => {
-      activeFilters.category = cat;
-      setParam('category', cat);
-      updateActivePill(bar, cat);
-      navController?.setActiveCategory(cat);
-      applyFilters();
-    });
-    bar.appendChild(pill);
-  });
-}
-
-function createPill(label, isActive) {
-  const btn = document.createElement('button');
-  btn.className = 'pill' + (isActive ? ' active' : '');
-  btn.textContent = label;
-  btn.dataset.cat = label;
-  btn.type = 'button';
-  return btn;
-}
-
-function updateActivePill(bar, activeLabel) {
-  bar.querySelectorAll('.pill').forEach(p => {
-    p.classList.toggle('active', p.dataset.cat === activeLabel);
   });
 }
 
 // ---- Result count -----------------------------------------
-function updateResultCount(count) {
+function updateResultCount(count, noun) {
   const el = document.getElementById('result-count');
-  if (el) el.textContent = `${count} dashboard${count !== 1 ? 's' : ''}`;
+  if (el) el.textContent = `${count} ${noun}${count !== 1 ? 's' : ''}`;
+}
+
+// ---- Render cycle -----------------------------------------
+function applyFilters() {
+  const hasSearch = activeFilters.query.trim().length > 0;
+
+  if (hasSearch) {
+    // Search overrides view level — show flat results across all categories
+    const filtered = filterDashboards(registry, activeFilters);
+    renderCards(filtered);
+    updateResultCount(filtered.length, 'dashboard');
+    updateBreadcrumb(null);
+    if (filtered.length === 0) {
+      showEmptyState('No dashboards match your search.');
+    } else {
+      hideEmptyState();
+    }
+    return;
+  }
+
+  if (viewLevel === 'categories') {
+    const categories = extractCategories(registry);
+    renderCategoryCards(categories, registry, (cat) => {
+      viewLevel          = 'dashboards';
+      activeCategoryView = cat;
+      setParam('category', cat);
+      navController?.setActiveCategory(cat);
+      updateBreadcrumb(cat);
+      applyFilters();
+    });
+    updateResultCount(categories.length, 'category');
+    updateBreadcrumb(null);
+    if (registry.length === 0) {
+      showEmptyState('No dashboards yet — publish one from Settings.');
+    } else {
+      hideEmptyState();
+    }
+
+  } else {
+    // Drill-down: dashboard cards for the selected category
+    const filtered = filterDashboards(registry, { category: activeCategoryView, tags: activeFilters.tags });
+    renderCards(filtered);
+    updateResultCount(filtered.length, 'dashboard');
+    updateBreadcrumb(activeCategoryView);
+    if (filtered.length === 0) {
+      showEmptyState('No dashboards in this category.');
+    } else {
+      hideEmptyState();
+    }
+  }
 }
 
 // ---- Search input -----------------------------------------
@@ -102,7 +121,6 @@ function initSearch() {
   const input = document.getElementById('search-input');
   if (!input) return;
 
-  // Pre-fill if URL has a query
   const urlQuery = getParam('q');
   if (urlQuery) { input.value = urlQuery; activeFilters.query = urlQuery; }
 
@@ -120,27 +138,21 @@ async function init() {
   try {
     registry = await loadRegistry();
 
-    // Pre-apply deep-link category filter from URL
+    // Pre-apply deep-link category from URL (drill straight into it)
     const urlCat = getParam('category');
-    if (urlCat) activeFilters.category = urlCat;
+    if (urlCat) {
+      viewLevel          = 'dashboards';
+      activeCategoryView = urlCat;
+    }
 
-    const categories = extractCategories(registry);
-    buildFilterBar(categories);
-
-    // Initialize navigation module (sidebar + layout toggle).
-    // Pass the full registry so the sidebar can list individual dashboards.
-    const bar = document.getElementById('filter-bar');
+    // Initialize navigation sidebar + layout toggle
     navController = initNav(registry, (cat) => {
-      activeFilters.category = cat;
+      // Called by sidebar when a category is selected (card mode)
+      viewLevel          = 'dashboards';
+      activeCategoryView = cat;
       setParam('category', cat ?? null);
-      if (bar) updateActivePill(bar, cat ?? 'All');
       applyFilters();
     });
-
-    // Sync sidebar to URL-preloaded category (card mode only)
-    if (navController && activeFilters.category) {
-      navController.setActiveCategory(activeFilters.category);
-    }
 
     initSearch();
     applyFilters();
@@ -149,10 +161,8 @@ async function init() {
     if (err instanceof RegistryLoadError) {
       showRegistryError();
     }
-    // Unexpected non-registry errors: logged to console, finally still runs
 
   } finally {
-    // Always hide spinner and show grid, even if something above threw
     hideSpinner();
     show('card-grid');
   }

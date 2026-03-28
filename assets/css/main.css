@@ -315,6 +315,58 @@ a:hover { text-decoration: underline; }
   color: var(--color-text-muted);
 }
 
+/* ---- Breadcrumb ------------------------------------------- */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+.breadcrumb-back {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-link);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  padding: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.breadcrumb-back:hover { opacity: 0.75; }
+
+.breadcrumb-sep {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.breadcrumb-current {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-heading);
+}
+
+/* ---- Category Folder Card --------------------------------- */
+.category-card .card-description {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+}
+
+.category-card-arrow {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: transform var(--transition-fast), color var(--transition-fast);
+}
+
+.category-card:hover .category-card-arrow,
+.category-card:focus-visible .category-card-arrow {
+  transform: translateX(4px);
+  color: var(--color-primary);
+}
+
 /* ---- Loading Spinner -------------------------------------- */
 .spinner {
   display: flex;
@@ -417,9 +469,9 @@ body.layout-sidebar .sidebar--collapsed {
   width: var(--sidebar-collapsed-width);
 }
 
-/* In sidebar mode: hide filter pills, card grid, empty state, and spinner */
-body.layout-sidebar .filter-bar  { display: none; }
+/* In sidebar mode: hide card grid, breadcrumb, empty state, and spinner */
 body.layout-sidebar .card-grid   { display: none !important; }
+body.layout-sidebar .breadcrumb  { display: none !important; }
 body.layout-sidebar .empty-state { display: none !important; }
 body.layout-sidebar .spinner     { display: none !important; }
 
@@ -530,27 +582,60 @@ body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
   transition: opacity var(--transition-base);
 }
 
-/* ---- Sidebar Category Group Headers ----------------------- */
-.sidebar-group-label {
-  padding: var(--space-4) var(--space-3) var(--space-1);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
+/* ---- Sidebar Expandable Category Groups ------------------- */
+
+/* Category header button */
+.sidebar-item--category {
+  justify-content: flex-start;
+  position: relative;
+}
+
+/* Chevron rotates when expanded */
+.sidebar-chevron {
+  display: inline-block;
+  font-style: normal;
+  font-size: 10px;
+  width: 14px;
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
   color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  white-space: nowrap;
-  overflow: hidden;
-  pointer-events: none;
+}
+
+.sidebar-chevron::before { content: '▶'; }
+
+.category-group--expanded .sidebar-chevron {
+  transform: rotate(90deg);
+}
+
+/* Dashboard count badge */
+.sidebar-item-count {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  background: var(--color-surface-alt);
+  border-radius: 999px;
+  padding: 1px 6px;
+  flex-shrink: 0;
   transition: opacity var(--transition-base);
 }
 
-body.layout-sidebar .sidebar--collapsed .sidebar-group-label {
+body.layout-sidebar .sidebar--collapsed .sidebar-item-count,
+body.layout-sidebar .sidebar--collapsed .sidebar-chevron {
   opacity: 0;
 }
 
-/* Dashboard items are indented slightly under their group */
+/* Dashboard items container — hidden until category is expanded */
+.category-group-items {
+  display: none;
+}
+
+.category-group--expanded .category-group-items {
+  display: block;
+}
+
+/* Dashboard items are indented under their category */
 .sidebar-item--dashboard {
-  padding-left: var(--space-5);
+  padding-left: var(--space-7, 1.75rem);
   font-size: var(--font-size-xs);
 }
 
@@ -690,9 +775,9 @@ body.layout-sidebar .nav-layout-btn {
 
   /* Always hide sidebar on mobile — not usable on small screens */
   body.layout-sidebar .sidebar { display: none; }
-  /* Always show filter pills and card grid on mobile */
-  body.layout-sidebar .filter-bar  { display: flex; }
+  /* Always show card grid and breadcrumb on mobile */
   body.layout-sidebar .card-grid   { display: grid !important; }
+  body.layout-sidebar .breadcrumb  { display: flex !important; }
   body.layout-sidebar .inline-viewer { display: none !important; }
   /* Hide layout toggle button on mobile */
   .nav-layout-btn { display: none; }
