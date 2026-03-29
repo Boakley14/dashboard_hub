@@ -72,7 +72,7 @@ export function createCard(entry, opts = {}) {
   const editBtnHtml = onEdit
     ? `<button class="card-edit-btn" type="button" title="Edit card" aria-label="Edit ${entry.title}">⋮</button>`
     : '';
-  const infoBtnHtml = (entry.dataSources?.length)
+  const infoBtnHtml = (entry.dataSources?.length || entry.powerBiDatasetId)
     ? `<button class="card-info-btn" type="button" title="View data sources" aria-label="View data sources for ${entry.title}">ⓘ</button>`
     : '';
 
@@ -98,7 +98,7 @@ export function createCard(entry, opts = {}) {
   `;
 
   // ---- Data source info -----------------------------------
-  if (entry.dataSources?.length) {
+  if (entry.dataSources?.length || entry.powerBiDatasetId) {
     article.querySelector('.card-info-btn').addEventListener('click', e => {
       e.stopPropagation();
       _openDataSourceInfoModal(entry);
@@ -200,10 +200,14 @@ function _wireColorPicker(modal) {
   return { getPending: () => pending };
 }
 
-// ---- Data source info modal (read-only) --------------------
+// ---- Data source info modal (read-only + live PBI schema) ----------
 function _openDataSourceInfoModal(entry) {
-  const sources = entry.dataSources || [];
-  const bodyHtml = sources.map(ds => `
+  const sources  = entry.dataSources || [];
+  const hasPbi   = !!(entry.powerBiDatasetId && entry.powerBiWorkspaceId);
+  const cacheKey = hasPbi ? `pbi-schema-${entry.powerBiDatasetId}` : null;
+
+  // Manually defined metadata
+  const metaHtml = sources.map(ds => `
     <div class="ds-source">
       <div class="ds-source-header">
         <span class="ds-type-badge ds-type-${_dsTypeKey(ds.type)}">${ds.type || 'Other'}</span>
@@ -215,12 +219,106 @@ function _openDataSourceInfoModal(entry) {
     </div>
   `).join('');
 
+  // Live Power BI schema section
+  const schemaHtml = hasPbi ? `
+    <div class="ds-schema-section">
+      <div class="ds-schema-header">
+        <span class="ds-schema-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/>
+            <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>
+          </svg>
+          Dataset Schema
+        </span>
+        <button type="button" class="btn-ds-refresh">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          <span class="btn-ds-refresh-label">Load Schema</span>
+        </button>
+      </div>
+      <div class="ds-schema-body">
+        <p class="ds-schema-hint">Click "Load Schema" to fetch live table and column info from Power BI.</p>
+      </div>
+    </div>
+  ` : '';
+
+  const bodyHtml = (metaHtml + schemaHtml) ||
+    '<p class="ds-empty">No data source information available.</p>';
+
   _openModal({
-    title: entry.title,
+    title:    entry.title,
     subtitle: 'Data Sources',
-    bodyHtml: bodyHtml || '<p class="ds-empty">No data source information available.</p>',
-    onMount() {},
-    wide: true,
+    bodyHtml,
+    wide:     true,
+    onMount(modal) {
+      if (!hasPbi) return;
+
+      const refreshBtn = modal.querySelector('.btn-ds-refresh');
+      const refreshLbl = modal.querySelector('.btn-ds-refresh-label');
+      const schemaBody = modal.querySelector('.ds-schema-body');
+
+      function renderSchema(data) {
+        const tables = data.tables || [];
+        if (!tables.length) {
+          schemaBody.innerHTML = '<p class="ds-schema-hint">No tables returned.</p>';
+          return;
+        }
+        const stamp = new Date(data.fetchedAt).toLocaleString(undefined,
+          { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        schemaBody.innerHTML =
+          `<p class="ds-schema-stamp">Loaded ${stamp} · ${tables.length} table${tables.length !== 1 ? 's' : ''}</p>` +
+          tables.map(t => {
+            const colRows = (t.columns  || []).map(c =>
+              `<div class="ds-col"><span class="ds-col-name">${c.name}</span><span class="ds-col-type">${c.dataType}</span></div>`
+            ).join('');
+            const msrRows = (t.measures || []).map(m =>
+              `<div class="ds-col"><span class="ds-col-name">${m.name}</span><span class="ds-col-type ds-col-measure">measure</span></div>`
+            ).join('');
+            const total = (t.columns?.length || 0) + (t.measures?.length || 0);
+            return `
+              <details class="ds-table" open>
+                <summary class="ds-table-summary">
+                  <span class="ds-table-name">${t.name}</span>
+                  <span class="ds-table-count">${total} field${total !== 1 ? 's' : ''}</span>
+                </summary>
+                <div class="ds-col-list">${colRows}${msrRows}</div>
+              </details>`;
+          }).join('');
+        refreshLbl.textContent = '↻ Refresh';
+      }
+
+      async function fetchSchema() {
+        refreshBtn.disabled = true;
+        refreshLbl.textContent = 'Loading…';
+        schemaBody.innerHTML = '<p class="ds-schema-loading"><span class="ds-spinner"></span>Fetching from Power BI…</p>';
+        try {
+          const res = await fetch(
+            `/api/pbi-schema?workspaceId=${entry.powerBiWorkspaceId}&datasetId=${entry.powerBiDatasetId}`
+          );
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({ error: res.statusText }));
+            throw new Error(err.error || res.statusText);
+          }
+          const data = await res.json();
+          sessionStorage.setItem(cacheKey, JSON.stringify(data));
+          renderSchema(data);
+        } catch (err) {
+          schemaBody.innerHTML = `<p class="ds-schema-error">⚠ Could not load schema: ${err.message}</p>`;
+          refreshLbl.textContent = 'Retry';
+        } finally {
+          refreshBtn.disabled = false;
+        }
+      }
+
+      // Auto-render cached schema; otherwise wait for user to click
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        try { renderSchema(JSON.parse(cached)); } catch { /* corrupt — prompt user to load */ }
+      }
+
+      refreshBtn.addEventListener('click', fetchSchema);
+    },
   });
 }
 

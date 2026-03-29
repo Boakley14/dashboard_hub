@@ -706,6 +706,142 @@ body.layout-sidebar .hub-title-bar { display: none; }
   padding: var(--space-4) 0;
 }
 
+/* ---- Power BI Schema Viewer ------------------------------- */
+.ds-schema-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-1);
+}
+.ds-schema-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.ds-schema-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.btn-ds-refresh {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+  background: none;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--border-radius-sm);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.btn-ds-refresh:hover:not(:disabled) { background: var(--color-primary); color: var(--white); }
+.btn-ds-refresh:disabled { opacity: 0.5; cursor: default; }
+.ds-schema-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: var(--space-3) 0;
+}
+.ds-schema-stamp {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+}
+.ds-schema-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  padding: var(--space-3) 0;
+}
+.ds-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: ds-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes ds-spin { to { transform: rotate(360deg); } }
+.ds-schema-error {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  padding: var(--space-2) 0;
+}
+.ds-table {
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+}
+.ds-table + .ds-table { margin-top: var(--space-2); }
+.ds-table-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-alt);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.ds-table-summary::-webkit-details-marker { display: none; }
+.ds-table-summary:hover { background: var(--color-border); }
+.ds-table-name {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-heading);
+}
+.ds-table-count {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+.ds-col-list { padding: var(--space-1) 0; }
+.ds-col {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 3px var(--space-3);
+  font-size: var(--font-size-xs);
+}
+.ds-col:nth-child(even) { background: rgba(0,0,0,0.04); }
+.ds-col-name {
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.ds-col-type {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  text-align: right;
+}
+.ds-col-measure {
+  color: #a78bfa;
+  font-style: italic;
+}
+
 /* ---- Breadcrumb ------------------------------------------- */
 .breadcrumb {
   display: flex;
