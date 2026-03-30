@@ -1,36 +1,40 @@
 /**
  * api/pbi-data/index.js
- * HTTP GET — executes named Power BI DAX queries against the Lodestar semantic
- * model and returns clean, frontend-ready JSON. No Power BI knowledge required
- * on the client side — just call the endpoint with a query name.
+ * HTTP GET — executes named DAX query shapes against the Lodestar semantic model,
+ * with dynamic filter injection so any named query can be narrowed at runtime
+ * without writing DAX or adding new named queries.
  *
- * Named queries:
- *   portfolio-kpis        — single-row portfolio summary (units, occupancy, revenue, NOI, leads)
- *   financial-trend       — monthly revenue, OpEx, NOI, margin  (?months=12)
- *   occupancy-by-property — per-property units, occupancy %, revenue, NOI
- *   move-activity-trend   — monthly move-in / move-out counts  (?months=12)
- *   leads-trend           — monthly leads, conversions, conversion rate  (?months=12)
- *   revenue-breakdown     — monthly rental / fee / insurance revenue split  (?months=12)
+ * ── Named query shapes ──────────────────────────────────────────────────────
+ *   portfolio-kpis        — single-row KPIs (units, occupancy, revenue, NOI, leads)
+ *   financial-trend       — monthly P&L (revenue, OpEx, NOI, margin, revenue components)
+ *   occupancy-by-property — per-property snapshot (units, occupancy, revenue, NOI)
+ *   move-activity-trend   — monthly move-in / move-out counts
+ *   leads-trend           — monthly leads, conversions, conversion rate
+ *   revenue-breakdown     — monthly rental / fee / insurance revenue split
+ *   filter-options        — distinct values for filter dropdowns (properties, markets, states)
  *
- * Query params:
- *   query   (required) — one of the named query keys above
- *   months  (optional) — months back for trend queries; default 12, max 36
+ * ── Dynamic filter params (work on any query) ───────────────────────────────
+ *   months    — last N months for trend queries (default 12, max 36)
+ *   dateFrom  — start month  YYYY-MM  (overrides months)
+ *   dateTo    — end month    YYYY-MM  (overrides months)
+ *   property  — exact Property Name (may repeat: &property=A&property=B)
+ *   market    — exact Market value
+ *   state     — exact State value
  *
- * Response envelope:
- *   { query, rows, columns, count, fetchedAt }
+ * ── Response envelope ───────────────────────────────────────────────────────
+ *   { query, filters, rows, columns, count, fetchedAt }
+ *
+ * ── Defaults ────────────────────────────────────────────────────────────────
+ *   workspaceId — 10 Federal Semantic Models workspace
+ *   datasetId   — Lodestar dataset
+ *   Override with ?workspaceId=...&datasetId=...
  *
  * Required app settings:
- *   POWERBI_TENANT_ID
- *   POWERBI_CLIENT_ID
- *   POWERBI_CLIENT_SECRET
- *
- * Defaults to the 10 Federal Lodestar semantic model.
- * Override with optional ?workspaceId=...&datasetId=... params.
+ *   POWERBI_TENANT_ID / POWERBI_CLIENT_ID / POWERBI_CLIENT_SECRET
  */
 
 const https = require('https');
 
-// ---- 10 Federal defaults ---------------------------------
 const DEFAULT_WORKSPACE = 'df46ca8b-208f-4c39-ad9f-829f8379a5bd';
 const DEFAULT_DATASET   = 'a28bcbcc-e7c9-4691-ad27-0f1cd7fdc19d';
 
@@ -40,75 +44,143 @@ const CORS = {
   'Content-Type':                 'application/json',
 };
 
-// ---- Named query registry --------------------------------
+// ============================================================
+// Filter builder
+// Converts URL query params into a DAX CALCULATETABLE wrapper.
+// Returns { daxFilter, summary } where daxFilter is either an
+// empty string (no filters) or a CALCULATETABLE(..., conditions)
+// expression that wraps the inner query.
+// ============================================================
 
-/**
- * Build a DATE() filter for DAX that limits to the last `months` calendar months.
- * Because TODAY() is unavailable via the REST API, we compute the cutoff in JS.
- */
-function dateCutoff(months) {
-  const n = Math.max(1, Math.min(parseInt(months) || 12, 36));
-  const start = new Date();
-  start.setMonth(start.getMonth() - n + 1);
-  start.setDate(1);
-  return `DATE(${start.getFullYear()}, ${start.getMonth() + 1}, 1)`;
+function buildFilters(params) {
+  const conditions = [];
+  const summary    = {};
+
+  // ── Date range ──────────────────────────────────────────
+  if (params.dateFrom || params.dateTo) {
+    // Explicit date range: YYYY-MM
+    if (params.dateFrom) {
+      const [y, m] = params.dateFrom.split('-').map(Number);
+      if (y && m) {
+        conditions.push(`'Dates'[Full Date] >= DATE(${y}, ${m}, 1)`);
+        summary.dateFrom = params.dateFrom;
+      }
+    }
+    if (params.dateTo) {
+      const [y, m] = params.dateTo.split('-').map(Number);
+      if (y && m) {
+        // End of the chosen month
+        conditions.push(`'Dates'[Full Date] <= DATE(${y}, ${m}, 28) + 4`);
+        summary.dateTo = params.dateTo;
+      }
+    }
+  } else if (params.months) {
+    // Rolling window
+    const n     = Math.max(1, Math.min(parseInt(params.months) || 12, 36));
+    const start = new Date();
+    start.setMonth(start.getMonth() - n + 1);
+    start.setDate(1);
+    conditions.push(
+      `'Dates'[Full Date] >= DATE(${start.getFullYear()}, ${start.getMonth() + 1}, 1)`
+    );
+    summary.months = n;
+  }
+
+  // ── Property filter ─────────────────────────────────────
+  // Supports multiple values: &property=A&property=B
+  const properties = [params.property].flat().filter(Boolean);
+  if (properties.length === 1) {
+    conditions.push(`'Properties'[Property Name] = "${escDax(properties[0])}"`);
+    summary.property = properties[0];
+  } else if (properties.length > 1) {
+    const list = properties.map(p => `"${escDax(p)}"`).join(', ');
+    conditions.push(`'Properties'[Property Name] IN { ${list} }`);
+    summary.property = properties;
+  }
+
+  // ── Market filter ────────────────────────────────────────
+  const markets = [params.market].flat().filter(Boolean);
+  if (markets.length === 1) {
+    conditions.push(`'Properties'[Market] = "${escDax(markets[0])}"`);
+    summary.market = markets[0];
+  } else if (markets.length > 1) {
+    const list = markets.map(m => `"${escDax(m)}"`).join(', ');
+    conditions.push(`'Properties'[Market] IN { ${list} }`);
+    summary.market = markets;
+  }
+
+  // ── State filter ─────────────────────────────────────────
+  const states = [params.state].flat().filter(Boolean);
+  if (states.length === 1) {
+    conditions.push(`'Properties'[State] = "${escDax(states[0])}"`);
+    summary.state = states[0];
+  } else if (states.length > 1) {
+    const list = states.map(s => `"${escDax(s)}"`).join(', ');
+    conditions.push(`'Properties'[State] IN { ${list} }`);
+    summary.state = states;
+  }
+
+  return { conditions, summary };
 }
 
+/** Escape double quotes inside a DAX string literal. */
+function escDax(str) { return String(str).replace(/"/g, '""'); }
+
 /**
- * Each query builder is a function that takes the parsed query params
- * and returns a DAX string starting with EVALUATE.
+ * Wrap an inner DAX query in a CALCULATETABLE filter.
+ * If no conditions, returns the inner query unchanged.
  */
+function applyFilters(innerDax, conditions) {
+  if (!conditions.length) return innerDax;
+  // CALCULATETABLE wraps the first EVALUATE expression
+  return innerDax.replace(/^(\s*EVALUATE\s*)/i,
+    `$1CALCULATETABLE(\n  (`
+  ) + `\n),\n  ${conditions.join(',\n  ')}\n)`;
+}
+
+// ============================================================
+// Named query shapes
+// Each is a function of (params) → DAX string starting with EVALUATE.
+// Filters are NOT baked in here — they are injected by applyFilters().
+// Use params only for structural variation (e.g. choosing columns).
+// ============================================================
+
 const NAMED_QUERIES = {
-  /**
-   * portfolio-kpis
-   * Single row — top-level portfolio KPIs across all time / all properties.
-   * Ideal for hero stat cards on a dashboard landing page.
-   */
-  'portfolio-kpis': (_params) => `
+
+  /** Single-row portfolio-wide KPIs. */
+  'portfolio-kpis': (_p) => `
 EVALUATE ROW(
-  "Total Units",       [Total Units],
-  "Occupied Units",    [Occupied Units],
-  "Vacant Units",      [Vacant Units],
-  "Occupancy",         [Unit Occupancy],
-  "Revenue",           [Revenue],
-  "Operating Expenses",[Operating Expenses],
-  "NOI",               [NOI],
-  "NOI Margin",        [NOI Margin],
-  "Total Leads",       [Total Leads],
-  "Conversion Rate",   [Lead Conversion Rate]
-)`,
+  "Total Units",        [Total Units],
+  "Occupied Units",     [Occupied Units],
+  "Vacant Units",       [Vacant Units],
+  "Occupancy",          [Unit Occupancy],
+  "Revenue",            [Revenue],
+  "Operating Expenses", [Operating Expenses],
+  "NOI",                [NOI],
+  "NOI Margin",         [NOI Margin],
+  "Total Leads",        [Total Leads],
+  "Conversion Rate",    [Lead Conversion Rate]
+)`.trim(),
 
-  /**
-   * financial-trend
-   * Monthly P&L breakdown — Revenue, OpEx, NOI, margin, and revenue components.
-   * Returns rows newest-first so the frontend can slice from index 0.
-   */
-  'financial-trend': (params) => `
+  /** Monthly P&L breakdown — Revenue, OpEx, NOI, margin + revenue components. */
+  'financial-trend': (_p) => `
 EVALUATE
-CALCULATETABLE(
-  SUMMARIZECOLUMNS(
-    'Dates'[Year],
-    'Dates'[Month],
-    'Dates'[Month Name],
-    "Revenue",             [Revenue],
-    "Operating Expenses",  [Operating Expenses],
-    "NOI",                 [NOI],
-    "NOI Margin",          [NOI Margin],
-    "Rental Revenue",      [Rental Revenue],
-    "Fee Revenue",         [Fee Revenue],
-    "Insurance Revenue",   [Insurance Revenue]
-  ),
-  'Dates'[Full Date] >= ${dateCutoff(params.months)}
+SUMMARIZECOLUMNS(
+  'Dates'[Year],
+  'Dates'[Month],
+  'Dates'[Month Name],
+  "Revenue",             [Revenue],
+  "Operating Expenses",  [Operating Expenses],
+  "NOI",                 [NOI],
+  "NOI Margin",          [NOI Margin],
+  "Rental Revenue",      [Rental Revenue],
+  "Fee Revenue",         [Fee Revenue],
+  "Insurance Revenue",   [Insurance Revenue]
 )
-ORDER BY 'Dates'[Year] DESC, 'Dates'[Month] DESC`,
+ORDER BY 'Dates'[Year] DESC, 'Dates'[Month] DESC`.trim(),
 
-  /**
-   * occupancy-by-property
-   * One row per property — units, occupancy rate, revenue, and NOI.
-   * Sorted by occupancy descending so best-performing properties come first.
-   * Null/unnamed properties and properties with no revenue are excluded.
-   */
-  'occupancy-by-property': (_params) => `
+  /** Per-property snapshot — units, occupancy, revenue, NOI. */
+  'occupancy-by-property': (_p) => `
 EVALUATE
 FILTER(
   SUMMARIZECOLUMNS(
@@ -121,69 +193,77 @@ FILTER(
   ),
   NOT ISBLANK('Properties'[Property Name]) && [Revenue] > 0
 )
-ORDER BY [Occupancy] DESC`,
+ORDER BY [Occupancy] DESC`.trim(),
+
+  /** Monthly move-in / move-out counts. */
+  'move-activity-trend': (_p) => `
+EVALUATE
+SUMMARIZECOLUMNS(
+  'Move Activity'[Move Activity],
+  'Dates'[Year],
+  'Dates'[Month],
+  'Dates'[Month Name],
+  "Count", COUNTROWS('Move Activity')
+)
+ORDER BY 'Dates'[Year] DESC, 'Dates'[Month] DESC, 'Move Activity'[Move Activity]`.trim(),
+
+  /** Monthly lead pipeline — leads, conversions, conversion rate. */
+  'leads-trend': (_p) => `
+EVALUATE
+SUMMARIZECOLUMNS(
+  'Dates'[Year],
+  'Dates'[Month],
+  'Dates'[Month Name],
+  "Total Leads",    [Total Leads],
+  "Conversions",    [Total Lead Conversion],
+  "Conversion Rate",[Lead Conversion Rate]
+)
+ORDER BY 'Dates'[Year] DESC, 'Dates'[Month] DESC`.trim(),
+
+  /** Monthly revenue split by component. */
+  'revenue-breakdown': (_p) => `
+EVALUATE
+SUMMARIZECOLUMNS(
+  'Dates'[Year],
+  'Dates'[Month],
+  'Dates'[Month Name],
+  "Total Revenue",     [Revenue],
+  "Rental Revenue",    [Rental Revenue],
+  "Fee Revenue",       [Fee Revenue],
+  "Insurance Revenue", [Insurance Revenue]
+)
+ORDER BY 'Dates'[Year] DESC, 'Dates'[Month] DESC`.trim(),
 
   /**
-   * move-activity-trend
-   * Monthly move-in and move-out counts.
-   * Returns one row per activity type per month — pivot on "Move Activity" for charts.
+   * filter-options
+   * Returns distinct values for filter dropdowns.
+   * Use this to populate <select> lists on a dashboard.
+   * Ignores all filter params (intentionally returns full lists).
+   * Returns: { properties[], markets[], states[] } in a single synthetic row
+   * — actually returns three separate result sets concatenated as:
+   *   [{ type: "property", value }, { type: "market", value }, { type: "state", value }]
    */
-  'move-activity-trend': (params) => `
+  'filter-options': (_p) => `
 EVALUATE
-CALCULATETABLE(
-  SUMMARIZECOLUMNS(
-    'Move Activity'[Move Activity],
-    'Dates'[Year],
-    'Dates'[Month],
-    'Dates'[Month Name],
-    "Count", COUNTROWS('Move Activity')
+UNION(
+  SELECTCOLUMNS(
+    FILTER(VALUES('Properties'[Property Name]), NOT ISBLANK('Properties'[Property Name])),
+    "type", "property",
+    "value", 'Properties'[Property Name]
   ),
-  'Dates'[Full Date] >= ${dateCutoff(params.months)}
+  SELECTCOLUMNS(
+    FILTER(VALUES('Properties'[Market]), NOT ISBLANK('Properties'[Market])),
+    "type", "market",
+    "value", 'Properties'[Market]
+  )
 )
-ORDER BY 'Dates'[Year] DESC, 'Dates'[Month] DESC, 'Move Activity'[Move Activity]`,
+ORDER BY [type], [value]`.trim(),
 
-  /**
-   * leads-trend
-   * Monthly lead pipeline — total leads, conversions, and conversion rate.
-   */
-  'leads-trend': (params) => `
-EVALUATE
-CALCULATETABLE(
-  SUMMARIZECOLUMNS(
-    'Dates'[Year],
-    'Dates'[Month],
-    'Dates'[Month Name],
-    "Total Leads",    [Total Leads],
-    "Conversions",    [Total Lead Conversion],
-    "Conversion Rate",[Lead Conversion Rate]
-  ),
-  'Dates'[Full Date] >= ${dateCutoff(params.months)}
-)
-ORDER BY 'Dates'[Year] DESC, 'Dates'[Month] DESC`,
-
-  /**
-   * revenue-breakdown
-   * Monthly split of revenue into Rental, Fee, and Insurance components.
-   * Useful for stacked-bar or area charts showing revenue composition.
-   */
-  'revenue-breakdown': (params) => `
-EVALUATE
-CALCULATETABLE(
-  SUMMARIZECOLUMNS(
-    'Dates'[Year],
-    'Dates'[Month],
-    'Dates'[Month Name],
-    "Total Revenue",    [Revenue],
-    "Rental Revenue",   [Rental Revenue],
-    "Fee Revenue",      [Fee Revenue],
-    "Insurance Revenue",[Insurance Revenue]
-  ),
-  'Dates'[Full Date] >= ${dateCutoff(params.months)}
-)
-ORDER BY 'Dates'[Year] DESC, 'Dates'[Month] DESC`,
 };
 
-// ---- Main handler ----------------------------------------
+// ============================================================
+// Main handler
+// ============================================================
 
 module.exports = async function (context, req) {
   const params      = req.query ?? {};
@@ -194,25 +274,16 @@ module.exports = async function (context, req) {
   // Validate query name
   if (!queryName) {
     context.res = {
-      status:  400,
-      headers: CORS,
-      body:    {
-        error:           'Missing required param: query',
-        available_queries: Object.keys(NAMED_QUERIES),
-      },
+      status: 400, headers: CORS,
+      body: { error: 'Missing required param: query', available: Object.keys(NAMED_QUERIES) },
     };
     return;
   }
-
   const builder = NAMED_QUERIES[queryName];
   if (!builder) {
     context.res = {
-      status:  400,
-      headers: CORS,
-      body:    {
-        error:             `Unknown query: "${queryName}"`,
-        available_queries: Object.keys(NAMED_QUERIES),
-      },
+      status: 400, headers: CORS,
+      body: { error: `Unknown query: "${queryName}"`, available: Object.keys(NAMED_QUERIES) },
     };
     return;
   }
@@ -220,20 +291,23 @@ module.exports = async function (context, req) {
   const tenantId     = process.env.POWERBI_TENANT_ID;
   const clientId     = process.env.POWERBI_CLIENT_ID;
   const clientSecret = process.env.POWERBI_CLIENT_SECRET;
-
   if (!tenantId || !clientId || !clientSecret) {
     context.res = { status: 500, headers: CORS, body: { error: 'Power BI credentials not configured.' } };
     return;
   }
 
   try {
-    // Build DAX from named query
-    const dax = builder(params).trim();
+    // Build base DAX + inject dynamic filters
+    const baseDax              = builder(params);
+    const { conditions, summary } = buildFilters(params);
 
-    // Authenticate
-    const token = await getAccessToken(tenantId, clientId, clientSecret);
+    // filter-options intentionally skips all filters
+    const dax = queryName === 'filter-options'
+      ? baseDax
+      : applyFilters(baseDax, conditions);
 
-    // Execute DAX
+    // Authenticate + execute
+    const token  = await getAccessToken(tenantId, clientId, clientSecret);
     const pbiRes = await pbiPost(token,
       `/v1.0/myorg/groups/${workspaceId}/datasets/${datasetId}/executeQueries`,
       { queries: [{ query: dax }], serializerSettings: { includeNulls: true } }
@@ -243,11 +317,11 @@ module.exports = async function (context, req) {
       const msg = pbiRes.body?.error?.pbi?.error?.details?.[0]?.detail?.value
                ?? pbiRes.body?.error?.message
                ?? `Power BI returned HTTP ${pbiRes.status}`;
-      context.res = { status: 502, headers: CORS, body: { error: msg } };
+      context.res = { status: 502, headers: CORS, body: { error: msg, dax } };
       return;
     }
 
-    // Parse rows — strip table-name prefix from column keys
+    // Parse + clean
     const rawRows = pbiRes.body?.results?.[0]?.tables?.[0]?.rows ?? [];
     const rows    = rawRows.map(cleanRow);
     const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
@@ -255,8 +329,9 @@ module.exports = async function (context, req) {
     context.res = {
       status:  200,
       headers: { ...CORS, 'Cache-Control': 'public, max-age=300' },
-      body:    {
+      body: {
         query:     queryName,
+        filters:   summary,
         rows,
         columns,
         count:     rows.length,
@@ -270,23 +345,18 @@ module.exports = async function (context, req) {
   }
 };
 
-// ---- Helpers -----------------------------------------------
+// ============================================================
+// Helpers
+// ============================================================
 
-/**
- * Strip the "TableName[ColumnName]" prefix from DAX result keys.
- * Examples:
- *   "Dates[Year]"               → "Year"
- *   "Properties[Property Name]" → "Property Name"
- *   "[Revenue]"                 → "Revenue"
- *   "Move Activity[Move Activity]" → "Move Activity"
- */
+/** Strip "TableName[Col]" prefix from DAX result keys → "Col" */
 function cleanRow(row) {
-  const clean = {};
+  const out = {};
   for (const [key, val] of Object.entries(row)) {
     const m = key.match(/\[([^\]]+)\]$/);
-    clean[m ? m[1] : key] = val;
+    out[m ? m[1] : key] = val;
   }
-  return clean;
+  return out;
 }
 
 function request(opts, bodyStr) {
@@ -310,19 +380,16 @@ function request(opts, bodyStr) {
 
 async function getAccessToken(tenantId, clientId, clientSecret) {
   const body = new URLSearchParams({
-    grant_type:    'client_credentials',
-    client_id:     clientId,
+    grant_type: 'client_credentials', client_id: clientId,
     client_secret: clientSecret,
-    scope:         'https://analysis.windows.net/powerbi/api/.default',
+    scope: 'https://analysis.windows.net/powerbi/api/.default',
   }).toString();
-
   const res = await request({
     hostname: 'login.microsoftonline.com',
     path:     `/${tenantId}/oauth2/v2.0/token`,
     method:   'POST',
     headers:  { 'Content-Type': 'application/x-www-form-urlencoded' },
   }, body);
-
   if (!res.body.access_token) {
     throw new Error(res.body.error_description ?? res.body.error ?? 'Token acquisition failed');
   }
@@ -332,11 +399,7 @@ async function getAccessToken(tenantId, clientId, clientSecret) {
 function pbiPost(token, path, body) {
   return request({
     hostname: 'api.powerbi.com',
-    path,
-    method:  'POST',
-    headers: {
-      Authorization:  `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
+    path, method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
   }, JSON.stringify(body));
 }
