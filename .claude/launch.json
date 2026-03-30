@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Azure Static Web App",
+      "runtimeExecutable": "swa",
+      "runtimeArgs": ["start", ".", "--api-devserver-url", "http://localhost:7071"],
+      "port": 4280
+    },
+    {
+      "name": "Azure Functions API",
+      "runtimeExecutable": "func",
+      "runtimeArgs": ["start"],
+      "port": 7071
+    }
+  ]
+}

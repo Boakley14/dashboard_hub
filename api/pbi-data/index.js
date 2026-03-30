@@ -291,7 +291,14 @@ module.exports = async function (context, req) {
   const tenantId     = process.env.POWERBI_TENANT_ID;
   const clientId     = process.env.POWERBI_CLIENT_ID;
   const clientSecret = process.env.POWERBI_CLIENT_SECRET;
-  if (!tenantId || !clientId || !clientSecret) {
+
+  // Prefer the user's own Entra ID token (delegated auth — RLS applies automatically).
+  // Fall back to service principal for automated / background use.
+  const authHeader  = req.headers?.['authorization'] ?? '';
+  const userToken   = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const useDelegate = Boolean(userToken);
+
+  if (!useDelegate && (!tenantId || !clientId || !clientSecret)) {
     context.res = { status: 500, headers: CORS, body: { error: 'Power BI credentials not configured.' } };
     return;
   }
@@ -307,7 +314,9 @@ module.exports = async function (context, req) {
       : applyFilters(baseDax, conditions);
 
     // Authenticate + execute
-    const token  = await getAccessToken(tenantId, clientId, clientSecret);
+    const token = useDelegate
+      ? userToken
+      : await getAccessToken(tenantId, clientId, clientSecret);
     const pbiRes = await pbiPost(token,
       `/v1.0/myorg/groups/${workspaceId}/datasets/${datasetId}/executeQueries`,
       { queries: [{ query: dax }], serializerSettings: { includeNulls: true } }
@@ -336,6 +345,7 @@ module.exports = async function (context, req) {
         columns,
         count:     rows.length,
         fetchedAt: new Date().toISOString(),
+        auth:      useDelegate ? 'delegated' : 'service-principal',
       },
     };
 
