@@ -923,6 +923,39 @@ body.layout-sidebar .hub-title-bar { display: none; }
   font-style: italic;
 }
 
+/* ---- Auto-detect data source ------------------------------ */
+.ds-detect-section {
+  padding: var(--space-3) 0;
+}
+.ds-save-detected {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+.ds-detect-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  flex: 1;
+  margin: 0;
+}
+.btn-ds-save-link {
+  background: var(--color-primary);
+  color: var(--color-text-on-dark);
+  border: none;
+  border-radius: var(--border-radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.btn-ds-save-link:hover:not(:disabled) { background: var(--color-primary-hover); }
+.btn-ds-save-link:disabled { opacity: 0.6; cursor: default; }
+
 /* ---- Breadcrumb ------------------------------------------- */
 .breadcrumb {
   display: flex;

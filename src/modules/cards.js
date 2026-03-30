@@ -87,8 +87,9 @@ export function createCard(entry, opts = {}) {
   const editBtnHtml = onEdit
     ? `<button class="card-edit-btn" type="button" title="Edit card" aria-label="Edit ${entry.title}">⋮</button>`
     : '';
-  const _pbiSrcs    = _getPbiSources(entry);
-  const infoBtnHtml = (entry.dataSources?.length || _pbiSrcs.length)
+  const _pbiSrcs       = _getPbiSources(entry);
+  const _hasAutoDetect = !_pbiSrcs.length && !entry.dataSources?.length && (entry.filename || entry.blobUrl);
+  const infoBtnHtml    = (_pbiSrcs.length || entry.dataSources?.length || _hasAutoDetect)
     ? `<button class="card-info-btn" type="button" title="View data sources" aria-label="View data sources for ${entry.title}">ⓘ</button>`
     : '';
 
@@ -114,10 +115,10 @@ export function createCard(entry, opts = {}) {
   `;
 
   // ---- Data source info -----------------------------------
-  if (entry.dataSources?.length || _pbiSrcs.length) {
+  if (infoBtnHtml) {
     article.querySelector('.card-info-btn').addEventListener('click', e => {
       e.stopPropagation();
-      _openDataSourceInfoModal(entry);
+      _openDataSourceInfoModal(entry, onEdit);
     });
   }
 
@@ -311,9 +312,10 @@ function _pbiSourceBlockHtml(src) {
 }
 
 // ---- Data source info modal (read-only + multi-source PBI schema) ---
-function _openDataSourceInfoModal(entry) {
-  const pbiSources = _getPbiSources(entry);
-  const dsSources  = entry.dataSources || [];
+function _openDataSourceInfoModal(entry, onEdit) {
+  const pbiSources    = _getPbiSources(entry);
+  const dsSources     = entry.dataSources || [];
+  const canAutoDetect = !pbiSources.length && !dsSources.length && (entry.filename || entry.blobUrl);
 
   // Manually defined metadata
   const metaHtml = dsSources.map(ds => `
@@ -331,7 +333,14 @@ function _openDataSourceInfoModal(entry) {
   // One schema block per linked PBI dataset
   const schemaHtml = pbiSources.map(_pbiSourceBlockHtml).join('');
 
-  const bodyHtml = (metaHtml + schemaHtml) ||
+  // Auto-detect placeholder — replaced after API call
+  const detectHtml = canAutoDetect
+    ? `<div class="ds-detect-section">
+        <p class="ds-schema-loading"><span class="ds-spinner"></span>Detecting Power BI data source…</p>
+       </div>`
+    : '';
+
+  const bodyHtml = (metaHtml || schemaHtml || detectHtml) ||
     '<p class="ds-empty">No data source information available.</p>';
 
   _openModal({
@@ -340,12 +349,89 @@ function _openDataSourceInfoModal(entry) {
     bodyHtml,
     wide:     true,
     onMount(modal) {
+      // Wire any pre-linked PBI sources
       pbiSources.forEach(src => {
         const block = modal.querySelector(`.ds-schema-section[data-src-id="${src.id}"]`);
         if (block) _wirePbiSourceBlock(block, src);
       });
+
+      // Auto-detect if no sources are linked yet but the card has an HTML file
+      if (canAutoDetect) {
+        _autoDetectAndRender(modal, entry, onEdit);
+      }
     },
   });
+}
+
+/** Fetch /api/pbi-detect and populate the modal with the discovered schema. */
+async function _autoDetectAndRender(modal, entry, onEdit) {
+  const detectSection = modal.querySelector('.ds-detect-section');
+  if (!detectSection) return;
+
+  try {
+    const param = entry.blobUrl
+      ? `blobUrl=${encodeURIComponent(entry.blobUrl)}`
+      : `filename=${encodeURIComponent(entry.filename)}`;
+
+    const res  = await fetch(`/api/pbi-detect?${param}`);
+    const data = await res.json();
+
+    if (!res.ok) {
+      detectSection.innerHTML =
+        `<p class="ds-schema-error">⚠ Auto-detect failed: ${data.error || res.statusText}</p>`;
+      return;
+    }
+
+    // Build a source object from the detected info
+    const src = {
+      id:          crypto.randomUUID?.() ?? String(Date.now()),
+      label:       data.reportName || 'Auto-detected',
+      workspaceId: data.datasetWorkspaceId || data.workspaceId,
+      datasetId:   data.datasetId,
+    };
+
+    const saveBtnHtml = onEdit
+      ? `<div class="ds-save-detected">
+           <p class="ds-detect-hint">Dataset auto-detected from report file.</p>
+           <button type="button" class="btn-ds-save-link">💾 Save Data Source</button>
+         </div>`
+      : '';
+
+    // Inject schema block + optional save button right after the detect placeholder
+    detectSection.insertAdjacentHTML('afterend', _pbiSourceBlockHtml(src) + saveBtnHtml);
+    detectSection.remove();
+
+    // Wire the new schema block
+    const block = modal.querySelector(`.ds-schema-section[data-src-id="${src.id}"]`);
+    if (block) {
+      _wirePbiSourceBlock(block, src);
+      // Auto-load schema immediately since we just detected it
+      block.querySelector('.btn-ds-refresh')?.click();
+    }
+
+    // Wire save button
+    if (onEdit) {
+      const saveBtn = modal.querySelector('.btn-ds-save-link');
+      saveBtn?.addEventListener('click', async () => {
+        saveBtn.disabled    = true;
+        saveBtn.textContent = 'Saving…';
+        try {
+          await onEdit(entry, 'save', { powerBiSources: [src] });
+          saveBtn.textContent = '✓ Saved';
+        } catch {
+          saveBtn.disabled    = false;
+          saveBtn.textContent = '⚠ Save failed — retry';
+        }
+      });
+    }
+
+  } catch (err) {
+    const detectSection2 = modal.querySelector('.ds-detect-section');
+    if (detectSection2) {
+      detectSection2.innerHTML =
+        `<p class="ds-schema-error">⚠ Auto-detect failed: ${err.message}</p>`;
+    }
+  }
 }
 
 // ---- Dashboard card modal ----------------------------------
