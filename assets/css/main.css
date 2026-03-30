@@ -598,7 +598,7 @@ body.layout-sidebar .hub-title-bar { display: none; }
 
 .btn-card-cancel:hover { color: var(--color-text); border-color: var(--color-text-muted); }
 
-/* ---- Power BI Link section (inside card edit modal) ------- */
+/* ---- Power BI Dataset manager (card edit modal) ----------- */
 .pbi-link-section {
   display: flex;
   flex-direction: column;
@@ -616,24 +616,68 @@ body.layout-sidebar .hub-title-bar { display: none; }
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.pbi-link-row { align-items: flex-start; flex-direction: column; gap: var(--space-1); }
-.pbi-link-label { width: auto; }
+.btn-pbi-add {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--border-radius-sm);
+  transition: background var(--transition-fast);
+}
+.btn-pbi-add:hover { background: var(--color-surface-alt); }
+.pbi-source-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface-alt);
+  border-radius: var(--border-radius-sm);
+}
+.pbi-source-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  flex: 1;
+}
+.pbi-source-id {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+.pbi-no-sources {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: var(--space-2) 0;
+}
+.pbi-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-surface-alt);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--color-border);
+}
+.pbi-form-btns { display: flex; gap: var(--space-2); }
 .pbi-input {
   width: 100%;
   padding: var(--space-1) var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-sm);
-  background: var(--color-surface-alt);
+  background: var(--color-surface);
   color: var(--color-text);
   font-family: 'Courier New', Courier, monospace;
   font-size: 11px;
 }
+.pbi-f-label { font-family: var(--font-family); font-size: var(--font-size-xs); }
 .pbi-input:focus { outline: none; border-color: var(--color-primary); }
-.pbi-link-hint {
-  font-size: 10px;
-  color: var(--color-text-muted);
-  margin-top: var(--space-1);
-}
 
 /* ---- Card Info Button (data sources) ---------------------- */
 .card-info-btn {
