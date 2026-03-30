@@ -343,6 +343,30 @@ function _openDashboardModal(entry, categories, onEdit) {
         <div class="color-swatches">${_swatchesHtml(initialColor)}</div>
       </div>
     </div>
+    <div class="pbi-link-section">
+      <div class="pbi-link-header">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/>
+          <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>
+        </svg>
+        Power BI Dataset
+      </div>
+      <div class="card-edit-row pbi-link-row">
+        <label class="card-edit-label pbi-link-label">Workspace ID</label>
+        <input type="text" class="pbi-input pbi-workspace-input"
+          value="${entry.powerBiWorkspaceId || ''}"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          spellcheck="false" autocomplete="off">
+      </div>
+      <div class="card-edit-row pbi-link-row">
+        <label class="card-edit-label pbi-link-label">Dataset ID</label>
+        <input type="text" class="pbi-input pbi-dataset-input"
+          value="${entry.powerBiDatasetId || ''}"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          spellcheck="false" autocomplete="off">
+      </div>
+      <p class="pbi-link-hint">Linking a dataset enables the ⓘ schema viewer on this card.</p>
+    </div>
     <div class="card-modal-footer">
       <button type="button" class="btn-card-save">Save</button>
       <button type="button" class="btn-card-delete">Delete</button>
@@ -354,6 +378,7 @@ function _openDashboardModal(entry, categories, onEdit) {
     title: entry.title,
     subtitle: entry.category,
     bodyHtml,
+    wide: true,
     onMount(modal) {
       const { getPending } = _wireColorPicker(modal);
       modal.querySelector('.card-edit-category')
@@ -364,6 +389,12 @@ function _openDashboardModal(entry, categories, onEdit) {
         if (pendingCategory !== entry.category) updates.category = pendingCategory;
         const pa = getPending();
         if (pa !== (entry.accentColor ?? null)) updates.accentColor = pa;
+
+        const wsId  = modal.querySelector('.pbi-workspace-input').value.trim();
+        const dsId  = modal.querySelector('.pbi-dataset-input').value.trim();
+        if (wsId  !== (entry.powerBiWorkspaceId || '')) updates.powerBiWorkspaceId = wsId  || null;
+        if (dsId  !== (entry.powerBiDatasetId   || '')) updates.powerBiDatasetId   = dsId  || null;
+
         _closeModal();
         if (Object.keys(updates).length > 0) await onEdit(entry, 'save', updates);
       });
