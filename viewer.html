@@ -36,6 +36,22 @@
       <h1 id="viewer-title" class="viewer-bc-title">Loading…</h1>
     </nav>
 
+    <!-- Refresh live data button (shown by viewer.js when entry has dataConnection) -->
+    <button
+      id="btn-refresh-data"
+      class="btn-viewer-action"
+      type="button"
+      aria-label="Refresh dashboard data"
+      hidden
+    >
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M23 4v6h-6M1 20v-6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Refresh Data
+    </button>
+    <span id="refresh-timestamp" class="viewer-refresh-ts" hidden></span>
+
     <!-- Open in new tab button (filled by viewer.js) -->
     <a
       id="btn-newtab"

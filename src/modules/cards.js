@@ -87,6 +87,9 @@ export function createCard(entry, opts = {}) {
   const editBtnHtml = onEdit
     ? `<button class="card-edit-btn" type="button" title="Edit card" aria-label="Edit ${entry.title}">⋮</button>`
     : '';
+  const liveBadgeHtml = entry.dataConnection
+    ? `<span class="card-live-badge" title="Live data connection">● Live</span>`
+    : '';
   const _pbiSrcs       = _getPbiSources(entry);
   const _hasAutoDetect = !_pbiSrcs.length && !entry.dataSources?.length && (entry.filename || entry.blobUrl);
   const infoBtnHtml    = (_pbiSrcs.length || entry.dataSources?.length || _hasAutoDetect)
@@ -94,7 +97,7 @@ export function createCard(entry, opts = {}) {
     : '';
 
   article.innerHTML = `
-    <div class="${accentClass}"${accentStyle} aria-hidden="true"></div>
+    <div class="${accentClass}"${accentStyle} aria-hidden="true">${liveBadgeHtml}</div>
     <div class="card-body">
       <div class="card-header-row">
         <span class="card-category-badge">${entry.category || 'Uncategorized'}</span>

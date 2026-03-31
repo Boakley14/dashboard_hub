@@ -67,6 +67,57 @@ async function init() {
   hideSpinner();
   show('dashboard-iframe');
   mountIframe(entry);
+
+  // ── Live data refresh ──────────────────────────────────────
+  // Show the "↻ Refresh Data" button only when the entry has a stored dataConnection.
+  if (entry.dataConnection) {
+    const refreshBtn = document.getElementById('btn-refresh-data');
+    const refreshTs  = document.getElementById('refresh-timestamp');
+    const iframe     = document.getElementById('dashboard-iframe');
+
+    if (refreshBtn) {
+      refreshBtn.hidden = false;
+
+      refreshBtn.addEventListener('click', () => {
+        refreshBtn.disabled  = true;
+        refreshBtn.textContent = '↻ Refreshing…';
+
+        // Signal the iframe to re-fetch its data
+        iframe?.contentWindow?.postMessage({ type: 'pbi-refresh' }, '*');
+
+        // Re-enable after 15 s as a safety fallback (iframe sends pbi-refresh-done on completion)
+        const fallback = setTimeout(() => {
+          refreshBtn.disabled = false;
+          refreshBtn.innerHTML = `
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M23 4v6h-6M1 20v-6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg> Refresh Data`;
+        }, 15_000);
+
+        // Listen for completion signal from the iframe's data-connection.js
+        const onDone = event => {
+          if (event.data?.type !== 'pbi-refresh-done') return;
+          clearTimeout(fallback);
+          window.removeEventListener('message', onDone);
+          refreshBtn.disabled = false;
+          refreshBtn.innerHTML = `
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M23 4v6h-6M1 20v-6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg> Refresh Data`;
+          if (refreshTs) {
+            const ts = event.data.refreshedAt
+              ? new Date(event.data.refreshedAt).toLocaleTimeString()
+              : new Date().toLocaleTimeString();
+            refreshTs.textContent = `Updated ${ts}`;
+            refreshTs.hidden = false;
+          }
+        };
+        window.addEventListener('message', onDone);
+      });
+    }
+  }
 }
 
 function showNotFound() {
