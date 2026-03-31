@@ -118,12 +118,13 @@ export function createCard(entry, opts = {}) {
     });
   }
 
-  // ---- Description popover --------------------------------
+  // ---- Description tooltip (hover) -------------------------
   if (infoBtnHtml) {
-    article.querySelector('.card-info-btn').addEventListener('click', e => {
-      e.stopPropagation();
-      _openDescriptionPopover(e.currentTarget, _desc);
-    });
+    const infoBtn = article.querySelector('.card-info-btn');
+    infoBtn.addEventListener('mouseenter', () => _showTooltip(infoBtn, _desc));
+    infoBtn.addEventListener('mouseleave', _hideTooltip);
+    infoBtn.addEventListener('focus',      () => _showTooltip(infoBtn, _desc));
+    infoBtn.addEventListener('blur',       _hideTooltip);
   }
 
   // ---- Edit modal -----------------------------------------
@@ -223,64 +224,74 @@ function _wireColorPicker(modal) {
   return { getPending: () => pending };
 }
 
-// ---- Description popover -----------------------------------
+// ---- Description tooltip (hover) ---------------------------
 
-let _activePopover = null;
+let _activeTooltip = null;
 
-function _closePopover() {
-  if (_activePopover) {
-    _activePopover.remove();
-    _activePopover = null;
-  }
+function _hideTooltip() {
+  _activeTooltip?.remove();
+  _activeTooltip = null;
 }
 
-function _openDescriptionPopover(triggerEl, description) {
-  _closePopover();
+function _showTooltip(triggerEl, text) {
+  _hideTooltip();
 
-  const popover = document.createElement('div');
-  popover.className = 'card-desc-popover';
-  popover.textContent = description;
+  const tip = document.createElement('div');
+  tip.className = 'card-desc-tooltip';
+  tip.setAttribute('role', 'tooltip');
+  tip.textContent = text;
+  document.body.appendChild(tip);
+  _activeTooltip = tip;
 
-  document.body.appendChild(popover);
-  _activePopover = popover;
-
-  // Position below the trigger button
-  const rect = triggerEl.getBoundingClientRect();
-  const top  = rect.bottom + window.scrollY + 6;
-  let   left = rect.left   + window.scrollX;
-
-  popover.style.top  = `${top}px`;
-  popover.style.left = `${left}px`;
-
-  // Keep within viewport horizontally
+  // Use fixed positioning so it escapes card overflow:hidden
   requestAnimationFrame(() => {
-    const pw    = popover.offsetWidth;
-    const vw    = window.innerWidth;
-    if (left + pw > vw - 12) {
-      popover.style.left = `${Math.max(8, vw - pw - 12)}px`;
-    }
-  });
+    const rect = triggerEl.getBoundingClientRect();
+    const tw   = tip.offsetWidth;
+    const th   = tip.offsetHeight;
+    const vw   = window.innerWidth;
 
-  // Dismiss on outside click or Escape
-  const onOutside = e => {
-    if (!popover.contains(e.target) && e.target !== triggerEl) {
-      _closePopover();
-      document.removeEventListener('click', onOutside, true);
-      document.removeEventListener('keydown', onEsc);
-    }
-  };
-  const onEsc = e => {
-    if (e.key === 'Escape') {
-      _closePopover();
-      document.removeEventListener('click', onOutside, true);
-      document.removeEventListener('keydown', onEsc);
-    }
-  };
-  // Use capture so it fires before stopPropagation in card click handlers
-  setTimeout(() => {
-    document.addEventListener('click', onOutside, true);
-    document.addEventListener('keydown', onEsc);
-  }, 0);
+    // Prefer above the button; fall back to below if not enough room
+    let top  = rect.top - th - 8;
+    if (top < 6) top = rect.bottom + 8;
+
+    // Align to the right edge of the button, clamp to viewport
+    let left = rect.right - tw;
+    if (left < 8) left = 8;
+    if (left + tw > vw - 8) left = vw - tw - 8;
+
+    tip.style.top  = `${top}px`;
+    tip.style.left = `${left}px`;
+  });
+}
+
+// ---- Connection info helper --------------------------------
+function _connectionInfoHtml(entry) {
+  if (entry.dataConnection?.sourceId) {
+    return `<div class="conn-status conn-status--connected">
+      <span class="conn-dot">🟢</span>
+      <span class="conn-label">Connected</span>
+      <span class="conn-detail">Source: <code>${entry.dataConnection.sourceId}</code></span>
+    </div>`;
+  }
+  if (entry.dataConnection) {
+    const ds = entry.dataConnection.datasetId || '';
+    return `<div class="conn-status conn-status--inline">
+      <span class="conn-dot">🟡</span>
+      <span class="conn-label">Inline connection</span>
+      ${ds ? `<span class="conn-detail">Dataset: <code>${ds.slice(0, 8)}…</code></span>` : ''}
+    </div>`;
+  }
+  if (entry.powerBiSources?.length) {
+    return `<div class="conn-status conn-status--embedded">
+      <span class="conn-dot">🔵</span>
+      <span class="conn-label">Embedded Power BI</span>
+      <span class="conn-detail">${entry.powerBiSources.length} source${entry.powerBiSources.length !== 1 ? 's' : ''}</span>
+    </div>`;
+  }
+  return `<div class="conn-status conn-status--none">
+    <span class="conn-dot">⚫</span>
+    <span class="conn-label">No data connection</span>
+  </div>`;
 }
 
 // ---- Dashboard card modal ----------------------------------
@@ -303,6 +314,10 @@ function _openDashboardModal(entry, categories, onEdit) {
         <input type="color" class="card-color-picker" value="${initialColor}">
         <div class="color-swatches">${_swatchesHtml(initialColor)}</div>
       </div>
+    </div>
+    <div class="card-edit-row">
+      <label class="card-edit-label">Data Connection</label>
+      ${_connectionInfoHtml(entry)}
     </div>
     <div class="card-modal-footer">
       <button type="button" class="btn-card-save">Save</button>
@@ -348,6 +363,14 @@ function _categoryHex(category) {
     'Finance': '#980000', 'Operations': '#2E2E2E', 'HR': '#6B6B6B'
   };
   return map[category] ?? '#C52127';
+}
+
+/**
+ * Public: open the dashboard settings modal for a given entry.
+ * Called from nav.js (sidebar right-click) as well as card ⋮ button.
+ */
+export function openDashboardSettingsModal(entry, categories, onEdit) {
+  _openDashboardModal(entry, categories, onEdit);
 }
 
 /**

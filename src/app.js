@@ -6,7 +6,8 @@
 import { applyTheme, applyNavColor, applyNavTextColor, getFirstName } from './modules/theme.js';
 import { loadRegistry, invalidateCache, RegistryLoadError } from './modules/registry.js';
 import { filterDashboards, extractCategories }           from './modules/filters.js';
-import { renderCards, renderCategoryCards }              from './modules/cards.js';
+import { renderCards, renderCategoryCards,
+         openDashboardSettingsModal }                    from './modules/cards.js';
 import { getParam, setParam }                            from './modules/router.js';
 import { showSpinner, hideSpinner, showEmptyState,
          hideEmptyState, showRegistryError, show }       from './modules/ui.js';
@@ -226,7 +227,10 @@ async function init() {
       activeCategoryView = cat;
       setParam('category', cat ?? null);
       applyFilters();
-    }, getCached);  // pass getCached so nav can show Favorites in sidebar
+    }, getCached, (entry) => {
+      // Right-click in sidebar → open the same dashboard settings modal
+      openDashboardSettingsModal(entry, extractCategories(registry), handleCardEdit);
+    });
 
     initSearch();
     applyFilters();

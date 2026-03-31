@@ -153,15 +153,83 @@ function renderCategoryList(categories, onCategorySelect, favorites = new Set())
   categories.forEach(cat => addItem(cat, null));
 }
 
+// ---- Sidebar right-click context menu ---------------------
+
+let _activeContextMenu = null;
+
+function _closeSidebarContextMenu() {
+  _activeContextMenu?.remove();
+  _activeContextMenu = null;
+}
+
+function _showSidebarContextMenu(x, y, entry, onDashboardSettings) {
+  _closeSidebarContextMenu();
+
+  const menu = document.createElement('div');
+  menu.className = 'sidebar-context-menu';
+  menu.style.left = `${x}px`;
+  menu.style.top  = `${y}px`;
+
+  const settingsBtn = document.createElement('button');
+  settingsBtn.type      = 'button';
+  settingsBtn.className = 'sidebar-context-item';
+  settingsBtn.innerHTML = `
+    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2"/>
+    </svg>
+    Dashboard Settings`;
+
+  settingsBtn.addEventListener('click', () => {
+    _closeSidebarContextMenu();
+    onDashboardSettings?.(entry);
+  });
+
+  menu.appendChild(settingsBtn);
+  document.body.appendChild(menu);
+  _activeContextMenu = menu;
+
+  // Clamp to viewport
+  requestAnimationFrame(() => {
+    const mw = menu.offsetWidth;
+    const mh = menu.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    if (x + mw > vw - 4) menu.style.left = `${vw - mw - 4}px`;
+    if (y + mh > vh - 4) menu.style.top  = `${y - mh}px`;
+  });
+
+  // Dismiss on outside click or Escape
+  const dismiss = e => {
+    if (!menu.contains(e.target)) {
+      _closeSidebarContextMenu();
+      document.removeEventListener('click', dismiss, true);
+      document.removeEventListener('keydown', onEsc);
+    }
+  };
+  const onEsc = e => {
+    if (e.key === 'Escape') {
+      _closeSidebarContextMenu();
+      document.removeEventListener('click', dismiss, true);
+      document.removeEventListener('keydown', onEsc);
+    }
+  };
+  setTimeout(() => {
+    document.addEventListener('click', dismiss, true);
+    document.addEventListener('keydown', onEsc);
+  }, 0);
+}
+
 /**
  * Sidebar mode: render expandable category sections.
  * Each category header expands to reveal dashboard items.
  * Clicking a dashboard item loads it in the inline viewer.
  * @param {Object[]} registry
- * @param {function} [getFavs]           - () => Set<string> of favorited IDs
- * @param {function} [onCategorySelect]  - Optional card-mode callback (unused in sidebar, kept for API consistency)
+ * @param {function} [getFavs]            - () => Set<string> of favorited IDs
+ * @param {function} [onCategorySelect]   - Optional card-mode callback (unused in sidebar, kept for API consistency)
+ * @param {function} [onDashboardSettings] - Called with entry when right-click → "Dashboard Settings"
  */
-function renderExpandableCategories(registry, getFavs, onCategorySelect) {
+function renderExpandableCategories(registry, getFavs, onCategorySelect, onDashboardSettings) {
   const nav = document.getElementById('sidebar-nav');
   if (!nav) return;
   nav.innerHTML = '';
@@ -177,7 +245,7 @@ function renderExpandableCategories(registry, getFavs, onCategorySelect) {
   if (favorites.size > 0) {
     const favEntries = registry.filter(e => favorites.has(e.id));
     if (favEntries.length > 0) {
-      nav.appendChild(_buildExpandableGroup('★ Favorites', favEntries, true));
+      nav.appendChild(_buildExpandableGroup('★ Favorites', favEntries, true, onDashboardSettings));
     }
   }
 
@@ -190,12 +258,12 @@ function renderExpandableCategories(registry, getFavs, onCategorySelect) {
   });
 
   Object.keys(groups).sort().forEach(cat => {
-    nav.appendChild(_buildExpandableGroup(cat, groups[cat], false));
+    nav.appendChild(_buildExpandableGroup(cat, groups[cat], false, onDashboardSettings));
   });
 }
 
 /** Build one expandable category group for sidebar mode. */
-function _buildExpandableGroup(cat, entries, isFavGroup) {
+function _buildExpandableGroup(cat, entries, isFavGroup, onDashboardSettings) {
   const group = document.createElement('div');
   group.className = 'category-group' + (isFavGroup ? ' category-group--favorites' : '');
 
@@ -248,6 +316,14 @@ function _buildExpandableGroup(cat, entries, isFavGroup) {
       loadInlineViewer(entry);
     });
 
+    // Right-click → context menu with "Dashboard Settings"
+    if (onDashboardSettings) {
+      btn.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        _showSidebarContextMenu(e.clientX, e.clientY, entry, onDashboardSettings);
+      });
+    }
+
     itemsWrap.appendChild(btn);
   });
 
@@ -266,12 +342,13 @@ function _sidebarEmpty(nav, msg) {
 // ---- Public API --------------------------------------------
 
 /**
- * @param {Object[]} registry         - Full dashboard registry
- * @param {function} onCategorySelect - Callback for card mode: receives category string
- * @param {function} [getCachedFavs]  - Optional: () => Set<string> of favorited IDs
+ * @param {Object[]} registry              - Full dashboard registry
+ * @param {function} onCategorySelect      - Callback for card mode: receives category string
+ * @param {function} [getCachedFavs]       - Optional: () => Set<string> of favorited IDs
+ * @param {function} [onDashboardSettings] - Optional: called with entry on right-click → "Dashboard Settings"
  * @returns {{ setActiveCategory: function }}
  */
-export function initNav(registry, onCategorySelect, getCachedFavs) {
+export function initNav(registry, onCategorySelect, getCachedFavs, onDashboardSettings) {
   let layout    = storedLayout();
   let collapsed = storedCollapsed();
 
@@ -280,7 +357,7 @@ export function initNav(registry, onCategorySelect, getCachedFavs) {
 
   // Initial render based on layout
   if (layout === 'sidebar') {
-    renderExpandableCategories(registry, getFavs, onCategorySelect);
+    renderExpandableCategories(registry, getFavs, onCategorySelect, onDashboardSettings);
     showInlinePrompt();
   } else {
     renderCategoryList(categories, onCategorySelect, getFavs());
@@ -298,7 +375,7 @@ export function initNav(registry, onCategorySelect, getCachedFavs) {
       applyLayout(layout);
 
       if (layout === 'sidebar') {
-        renderExpandableCategories(registry, getFavs, onCategorySelect);
+        renderExpandableCategories(registry, getFavs, onCategorySelect, onDashboardSettings);
         showInlinePrompt();
       } else {
         renderCategoryList(categories, onCategorySelect, getFavs());
