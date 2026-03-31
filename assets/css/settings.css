@@ -875,10 +875,14 @@ textarea {
   border-radius: var(--border-radius-lg, 12px);
   padding: 0;
   box-shadow: 0 8px 40px rgba(0,0,0,0.4);
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
   color: var(--color-text);
+  /* hidden by default — display is controlled by the [open] attribute */
+  display: none;
+}
+.ds-preview-dialog[open] {
+  display: flex;
+  flex-direction: column;
 }
 .ds-preview-dialog::backdrop {
   background: rgba(0,0,0,0.55);
