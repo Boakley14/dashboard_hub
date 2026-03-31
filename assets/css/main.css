@@ -316,7 +316,7 @@ body.layout-sidebar .hub-title-bar { display: none; }
 }
 
 .card-fav-btn--active {
-  color: var(--color-primary);
+  color: #f5c518;
 }
 
 .card-fav-btn--active:hover {
@@ -340,7 +340,7 @@ body.layout-sidebar .hub-title-bar { display: none; }
 }
 
 .fav-folder-star {
-  color: var(--color-primary);
+  color: #f5c518;
   font-size: 1.1em;
   line-height: 1;
 }
@@ -1300,13 +1300,13 @@ body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
   flex-shrink: 0;
   font-size: 11px;
   line-height: 1;
-  color: var(--color-primary);
+  color: #f5c518;
   opacity: 0.9;
 }
 
 /* Favorites section header in sidebar mode */
 .category-group--favorites > .sidebar-item--category .sidebar-item-label {
-  color: var(--color-primary);
+  color: #f5c518;
   font-weight: var(--font-weight-bold);
 }
 
