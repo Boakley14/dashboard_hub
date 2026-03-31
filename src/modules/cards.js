@@ -83,7 +83,8 @@ export function createCard(entry, opts = {}) {
          ${isFav ? '★' : '☆'}
        </button>`
     : '';
-  const infoBtnHtml = entry.description
+  const _desc       = (entry.description || '').trim();
+  const infoBtnHtml = _desc
     ? `<button class="card-info-btn" type="button" title="View description" aria-label="View description for ${entry.title}">ⓘ</button>`
     : '';
 
@@ -121,7 +122,7 @@ export function createCard(entry, opts = {}) {
   if (infoBtnHtml) {
     article.querySelector('.card-info-btn').addEventListener('click', e => {
       e.stopPropagation();
-      _openDescriptionPopover(e.currentTarget, entry.description);
+      _openDescriptionPopover(e.currentTarget, _desc);
     });
   }
 
