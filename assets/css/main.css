@@ -296,6 +296,55 @@ body.layout-sidebar .hub-title-bar { display: none; }
   flex-shrink: 0;
 }
 
+/* ── Favorite star button ──────────────────────────────────── */
+.card-fav-btn {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  border-radius: var(--border-radius-sm);
+  transition: color var(--transition-fast), transform var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.card-fav-btn:hover {
+  color: var(--color-primary);
+  transform: scale(1.15);
+}
+
+.card-fav-btn--active {
+  color: var(--color-primary);
+}
+
+.card-fav-btn--active:hover {
+  color: var(--color-text-muted);
+}
+
+/* ── Favorites folder card ─────────────────────────────────── */
+.card-accent--favorites {
+  background: linear-gradient(90deg, var(--color-primary) 0%, #f14f4d 100%);
+}
+
+.card-category-badge--favorites {
+  background: rgba(197,33,39,0.18);
+  color: var(--color-primary);
+}
+
+.card-title--favorites {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.fav-folder-star {
+  color: var(--color-primary);
+  font-size: 1.1em;
+  line-height: 1;
+}
+
 /* Live data connection badge — shown on accent strip */
 .card-live-badge {
   position: absolute;
@@ -1244,6 +1293,21 @@ body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
 
 .sidebar-item.active .sidebar-item-dot {
   opacity: 1;
+}
+
+/* Favorites star icon in sidebar (replaces dot) */
+.sidebar-item-star {
+  flex-shrink: 0;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--color-primary);
+  opacity: 0.9;
+}
+
+/* Favorites section header in sidebar mode */
+.category-group--favorites > .sidebar-item--category .sidebar-item-label {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-bold);
 }
 
 .sidebar-item-label {

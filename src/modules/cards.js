@@ -90,6 +90,18 @@ export function createCard(entry, opts = {}) {
   const liveBadgeHtml = entry.dataConnection
     ? `<span class="card-live-badge" title="Live data connection">● Live</span>`
     : '';
+  // isFavoriteFn can be a function (id) => bool or a plain boolean (legacy)
+  const { onFavorite } = opts;
+  const isFavRaw  = opts.isFavoriteFn ? opts.isFavoriteFn(entry.id) : (opts.isFavorite ?? false);
+  const isFav     = Boolean(isFavRaw);
+  const favBtnHtml = onFavorite
+    ? `<button class="card-fav-btn${isFav ? ' card-fav-btn--active' : ''}" type="button"
+         title="${isFav ? 'Remove from favorites' : 'Add to favorites'}"
+         aria-label="${isFav ? 'Remove from favorites' : 'Add to favorites'}"
+         aria-pressed="${isFav}">
+         ${isFav ? '★' : '☆'}
+       </button>`
+    : '';
   const _pbiSrcs       = _getPbiSources(entry);
   const _hasAutoDetect = !_pbiSrcs.length && !entry.dataSources?.length && (entry.filename || entry.blobUrl);
   const infoBtnHtml    = (_pbiSrcs.length || entry.dataSources?.length || _hasAutoDetect)
@@ -103,6 +115,7 @@ export function createCard(entry, opts = {}) {
         <span class="card-category-badge">${entry.category || 'Uncategorized'}</span>
         <div class="card-header-actions">
           ${entry.openInNewTab ? '<span class="card-newtab-badge" title="Opens in new tab">↗ New Tab</span>' : ''}
+          ${favBtnHtml}
           ${infoBtnHtml}
           ${editBtnHtml}
         </div>
@@ -116,6 +129,14 @@ export function createCard(entry, opts = {}) {
       </div>
     </div>
   `;
+
+  // ---- Favorite toggle ------------------------------------
+  if (onFavorite) {
+    article.querySelector('.card-fav-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      onFavorite(entry.id);
+    });
+  }
 
   // ---- Data source info -----------------------------------
   if (infoBtnHtml) {
@@ -608,15 +629,52 @@ function getCatAccent(category) {
 
 /**
  * Render category "folder" cards — one card per category.
+ * Pass `favCount` > 0 to prepend a special Favorites folder card.
  */
-export function renderCategoryCards(categories, registry, onCategoryClick, onCategoryEdit) {
+export function renderCategoryCards(categories, registry, onCategoryClick, onCategoryEdit, favCount = 0) {
   const grid = document.getElementById('card-grid');
   if (!grid) return;
   grid.innerHTML = '';
+
+  // Favorites folder (only shown when user has at least one favorite)
+  if (favCount > 0) {
+    grid.appendChild(createFavoritesCategoryCard(favCount, onCategoryClick));
+  }
+
   categories.forEach(cat => {
     const count = registry.filter(d => d.category === cat).length;
     grid.appendChild(createCategoryCard(cat, count, onCategoryClick, onCategoryEdit));
   });
+}
+
+/** Special "★ Favorites" folder card — always first in the grid. */
+function createFavoritesCategoryCard(count, onClick) {
+  const article = document.createElement('article');
+  article.className = 'dashboard-card category-card category-card--favorites';
+  article.dataset.category = '★ Favorites';
+
+  article.innerHTML = `
+    <div class="card-accent card-accent--favorites" aria-hidden="true"></div>
+    <div class="card-body">
+      <div class="card-header-row">
+        <span class="card-category-badge card-category-badge--favorites">Favorites</span>
+      </div>
+      <h2 class="card-title card-title--favorites">
+        <span class="fav-folder-star" aria-hidden="true">★</span> Favorites
+      </h2>
+      <p class="card-description">${count} saved dashboard${count !== 1 ? 's' : ''}</p>
+    </div>
+  `;
+
+  article.setAttribute('tabindex', '0');
+  article.setAttribute('role', 'button');
+  article.setAttribute('aria-label', `Favorites — ${count} saved dashboard${count !== 1 ? 's' : ''}`);
+  article.addEventListener('click', () => onClick('★ Favorites'));
+  article.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); article.click(); }
+  });
+
+  return article;
 }
 
 function createCategoryCard(category, count, onClick, onEdit) {

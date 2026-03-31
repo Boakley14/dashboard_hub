@@ -11,6 +11,8 @@ import { getParam, setParam }                            from './modules/router.
 import { showSpinner, hideSpinner, showEmptyState,
          hideEmptyState, showRegistryError, show }       from './modules/ui.js';
 import { initNav }                                       from './modules/nav.js';
+import { loadFavorites, toggleFavorite, getCached,
+         isFavorite, onFavoritesChange }                 from './modules/favorites.js';
 
 // Apply appearance preferences immediately (before any rendering)
 applyTheme();
@@ -57,6 +59,12 @@ function updateBreadcrumb(category) {
 function updateResultCount(count, noun) {
   const el = document.getElementById('result-count');
   if (el) el.textContent = `${count} ${noun}${count !== 1 ? 's' : ''}`;
+}
+
+// ---- Favorite toggle handler ------------------------------
+async function handleFavoriteToggle(dashboardId) {
+  await toggleFavorite(dashboardId);
+  applyFilters();  // re-render cards with updated star state + Favorites folder count
 }
 
 // ---- Card edit handler ------------------------------------
@@ -111,7 +119,15 @@ function handleCategoryEdit(category, accentColor) {
 function applyFilters() {
   const hasSearch  = activeFilters.query.trim().length > 0;
   const categories = extractCategories(registry);
-  const editOpts   = { onEdit: handleCardEdit, categories };
+  const favorites  = getCached();  // synchronous — already loaded by init()
+
+  // Uniform opts with per-entry favorite resolution via isFavoriteFn
+  const editOpts = {
+    onEdit:        handleCardEdit,
+    categories,
+    isFavoriteFn:  (id) => favorites.has(id),
+    onFavorite:    handleFavoriteToggle,
+  };
 
   if (hasSearch) {
     const filtered = filterDashboards(registry, activeFilters);
@@ -130,19 +146,27 @@ function applyFilters() {
       navController?.setActiveCategory(cat);
       updateBreadcrumb(cat);
       applyFilters();
-    }, handleCategoryEdit);
-    updateResultCount(categories.length, 'category');
+    }, handleCategoryEdit, favorites.size);
+    updateResultCount(categories.length + (favorites.size > 0 ? 1 : 0), 'category');
     updateBreadcrumb(null);
     registry.length === 0
       ? showEmptyState('No dashboards yet — publish one from Settings.')
       : hideEmptyState();
 
   } else {
-    const filtered = filterDashboards(registry, { category: activeCategoryView, tags: activeFilters.tags });
+    // Favorites virtual category — filter by favorited IDs instead of category field
+    const filtered = activeCategoryView === '★ Favorites'
+      ? registry.filter(d => favorites.has(d.id))
+      : filterDashboards(registry, { category: activeCategoryView, tags: activeFilters.tags });
+
     renderCards(filtered, editOpts);
     updateResultCount(filtered.length, 'dashboard');
     updateBreadcrumb(activeCategoryView);
-    filtered.length === 0 ? showEmptyState('No dashboards in this category.') : hideEmptyState();
+    filtered.length === 0
+      ? showEmptyState(activeCategoryView === '★ Favorites'
+          ? 'No favorites yet — click ☆ on any dashboard to save it here.'
+          : 'No dashboards in this category.')
+      : hideEmptyState();
   }
 }
 
@@ -188,7 +212,11 @@ async function init() {
   initWelcome();
 
   try {
-    registry = await loadRegistry();
+    // Load registry and favorites in parallel
+    [registry] = await Promise.all([
+      loadRegistry(),
+      loadFavorites(),  // warms the cache so getCached() is synchronous during rendering
+    ]);
 
     const urlCat = getParam('category');
     if (urlCat) { viewLevel = 'dashboards'; activeCategoryView = urlCat; }
@@ -198,10 +226,13 @@ async function init() {
       activeCategoryView = cat;
       setParam('category', cat ?? null);
       applyFilters();
-    });
+    }, getCached);  // pass getCached so nav can show Favorites in sidebar
 
     initSearch();
     applyFilters();
+
+    // Re-render when favorites change (e.g. from a toggle in sidebar mode)
+    onFavoritesChange(() => applyFilters());
 
   } catch (err) {
     if (err instanceof RegistryLoadError) showRegistryError();
