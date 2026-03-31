@@ -29,25 +29,6 @@ function categoryClass(category) {
   return CATEGORY_CLASS_MAP[category] ?? 'default';
 }
 
-function _dsTypeKey(type) {
-  return (type || 'other').toLowerCase().replace(/[^a-z]+/g, '-');
-}
-
-/** Normalize entry fields into a consistent powerBiSources array. */
-function _getPbiSources(entry) {
-  if (entry.powerBiSources?.length) return entry.powerBiSources;
-  // backward-compat: single-source fields
-  if (entry.powerBiDatasetId && entry.powerBiWorkspaceId) {
-    return [{
-      id:          'legacy',
-      label:       'Dataset',
-      workspaceId: entry.powerBiWorkspaceId,
-      datasetId:   entry.powerBiDatasetId,
-    }];
-  }
-  return [];
-}
-
 function formatDate(iso) {
   if (!iso) return '';
   try {
@@ -102,10 +83,8 @@ export function createCard(entry, opts = {}) {
          ${isFav ? '★' : '☆'}
        </button>`
     : '';
-  const _pbiSrcs       = _getPbiSources(entry);
-  const _hasAutoDetect = !_pbiSrcs.length && !entry.dataSources?.length && (entry.filename || entry.blobUrl);
-  const infoBtnHtml    = (_pbiSrcs.length || entry.dataSources?.length || _hasAutoDetect)
-    ? `<button class="card-info-btn" type="button" title="View data sources" aria-label="View data sources for ${entry.title}">ⓘ</button>`
+  const infoBtnHtml = entry.description
+    ? `<button class="card-info-btn" type="button" title="View description" aria-label="View description for ${entry.title}">ⓘ</button>`
     : '';
 
   article.innerHTML = `
@@ -138,11 +117,11 @@ export function createCard(entry, opts = {}) {
     });
   }
 
-  // ---- Data source info -----------------------------------
+  // ---- Description popover --------------------------------
   if (infoBtnHtml) {
     article.querySelector('.card-info-btn').addEventListener('click', e => {
       e.stopPropagation();
-      _openDataSourceInfoModal(entry, onEdit);
+      _openDescriptionPopover(e.currentTarget, entry.description);
     });
   }
 
@@ -157,6 +136,8 @@ export function createCard(entry, opts = {}) {
   // ---- Navigate on click (not on edit button) -------------
   article.addEventListener('click', e => {
     if (e.target.closest('.card-edit-btn')) return;
+    if (e.target.closest('.card-info-btn')) return;
+    if (e.target.closest('.card-fav-btn')) return;
     if (entry.openInNewTab) {
       window.open(`./dashboards/${entry.filename}`, '_blank', 'noopener');
     } else {
@@ -241,221 +222,64 @@ function _wireColorPicker(modal) {
   return { getPending: () => pending };
 }
 
-// ---- Shared schema helpers -----------------------------------------
+// ---- Description popover -----------------------------------
 
-function _schemaTableHtml(t) {
-  const colRows = (t.columns  || []).map(c =>
-    `<div class="ds-col"><span class="ds-col-name">${c.name}</span><span class="ds-col-type">${c.dataType}</span></div>`
-  ).join('');
-  const msrRows = (t.measures || []).map(m =>
-    `<div class="ds-col"><span class="ds-col-name">${m.name}</span><span class="ds-col-type ds-col-measure">measure</span></div>`
-  ).join('');
-  const total = (t.columns?.length || 0) + (t.measures?.length || 0);
-  return `
-    <details class="ds-table" open>
-      <summary class="ds-table-summary">
-        <span class="ds-table-name">${t.name}</span>
-        <span class="ds-table-count">${total} field${total !== 1 ? 's' : ''}</span>
-      </summary>
-      <div class="ds-col-list">${colRows}${msrRows}</div>
-    </details>`;
+let _activePopover = null;
+
+function _closePopover() {
+  if (_activePopover) {
+    _activePopover.remove();
+    _activePopover = null;
+  }
 }
 
-function _wirePbiSourceBlock(block, src) {
-  const cacheKey   = `pbi-schema-${src.datasetId}`;
-  const refreshBtn = block.querySelector('.btn-ds-refresh');
-  const refreshLbl = block.querySelector('.btn-ds-refresh-label');
-  const schemaBody = block.querySelector('.ds-schema-body');
+function _openDescriptionPopover(triggerEl, description) {
+  _closePopover();
 
-  function renderSchema(data) {
-    const tables = data.tables || [];
-    if (!tables.length) {
-      schemaBody.innerHTML = '<p class="ds-schema-hint">No tables returned.</p>';
-      return;
+  const popover = document.createElement('div');
+  popover.className = 'card-desc-popover';
+  popover.textContent = description;
+
+  document.body.appendChild(popover);
+  _activePopover = popover;
+
+  // Position below the trigger button
+  const rect = triggerEl.getBoundingClientRect();
+  const top  = rect.bottom + window.scrollY + 6;
+  let   left = rect.left   + window.scrollX;
+
+  popover.style.top  = `${top}px`;
+  popover.style.left = `${left}px`;
+
+  // Keep within viewport horizontally
+  requestAnimationFrame(() => {
+    const pw    = popover.offsetWidth;
+    const vw    = window.innerWidth;
+    if (left + pw > vw - 12) {
+      popover.style.left = `${Math.max(8, vw - pw - 12)}px`;
     }
-    const stamp = new Date(data.fetchedAt).toLocaleString(undefined,
-      { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    schemaBody.innerHTML =
-      `<p class="ds-schema-stamp">Loaded ${stamp} · ${tables.length} table${tables.length !== 1 ? 's' : ''}</p>` +
-      tables.map(_schemaTableHtml).join('');
-    refreshLbl.textContent = '↻ Refresh';
-  }
-
-  async function fetchSchema() {
-    refreshBtn.disabled = true;
-    refreshLbl.textContent = 'Loading…';
-    schemaBody.innerHTML = '<p class="ds-schema-loading"><span class="ds-spinner"></span>Fetching from Power BI…</p>';
-    try {
-      const res = await fetch(`/api/pbi-schema?workspaceId=${src.workspaceId}&datasetId=${src.datasetId}`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(err.error || res.statusText);
-      }
-      const data = await res.json();
-      sessionStorage.setItem(cacheKey, JSON.stringify(data));
-      renderSchema(data);
-    } catch (err) {
-      schemaBody.innerHTML = `<p class="ds-schema-error">⚠ Could not load schema: ${err.message}</p>`;
-      refreshLbl.textContent = 'Retry';
-    } finally {
-      refreshBtn.disabled = false;
-    }
-  }
-
-  // Auto-render from cache
-  const cached = sessionStorage.getItem(cacheKey);
-  if (cached) {
-    try { renderSchema(JSON.parse(cached)); } catch { /* corrupt */ }
-  }
-
-  refreshBtn.addEventListener('click', fetchSchema);
-}
-
-function _pbiSourceBlockHtml(src) {
-  return `
-    <div class="ds-schema-section" data-src-id="${src.id}">
-      <div class="ds-schema-header">
-        <span class="ds-schema-title">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/>
-            <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>
-          </svg>
-          ${src.label || 'Dataset'}
-        </span>
-        <button type="button" class="btn-ds-refresh">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-          </svg>
-          <span class="btn-ds-refresh-label">Load Schema</span>
-        </button>
-      </div>
-      <div class="ds-schema-body">
-        <p class="ds-schema-hint">Click "Load Schema" to fetch live table and column info from Power BI.</p>
-      </div>
-    </div>`;
-}
-
-// ---- Data source info modal (read-only + multi-source PBI schema) ---
-function _openDataSourceInfoModal(entry, onEdit) {
-  const pbiSources    = _getPbiSources(entry);
-  const dsSources     = entry.dataSources || [];
-  const canAutoDetect = !pbiSources.length && !dsSources.length && (entry.filename || entry.blobUrl);
-
-  // Manually defined metadata
-  const metaHtml = dsSources.map(ds => `
-    <div class="ds-source">
-      <div class="ds-source-header">
-        <span class="ds-type-badge ds-type-${_dsTypeKey(ds.type)}">${ds.type || 'Other'}</span>
-        <span class="ds-name">${ds.name}</span>
-      </div>
-      ${ds.connection ? `<div class="ds-field"><span class="ds-field-label">Connection</span><span class="ds-field-value">${ds.connection}</span></div>` : ''}
-      ${ds.tables    ? `<div class="ds-field"><span class="ds-field-label">Tables / Fields</span><span class="ds-field-value ds-tables">${ds.tables}</span></div>` : ''}
-      ${ds.notes     ? `<div class="ds-field"><span class="ds-field-label">Notes</span><span class="ds-field-value">${ds.notes}</span></div>` : ''}
-    </div>
-  `).join('');
-
-  // One schema block per linked PBI dataset
-  const schemaHtml = pbiSources.map(_pbiSourceBlockHtml).join('');
-
-  // Auto-detect placeholder — replaced after API call
-  const detectHtml = canAutoDetect
-    ? `<div class="ds-detect-section">
-        <p class="ds-schema-loading"><span class="ds-spinner"></span>Detecting Power BI data source…</p>
-       </div>`
-    : '';
-
-  const bodyHtml = (metaHtml || schemaHtml || detectHtml) ||
-    '<p class="ds-empty">No data source information available.</p>';
-
-  _openModal({
-    title:    entry.title,
-    subtitle: 'Data Sources',
-    bodyHtml,
-    wide:     true,
-    onMount(modal) {
-      // Wire any pre-linked PBI sources
-      pbiSources.forEach(src => {
-        const block = modal.querySelector(`.ds-schema-section[data-src-id="${src.id}"]`);
-        if (block) _wirePbiSourceBlock(block, src);
-      });
-
-      // Auto-detect if no sources are linked yet but the card has an HTML file
-      if (canAutoDetect) {
-        _autoDetectAndRender(modal, entry, onEdit);
-      }
-    },
   });
-}
 
-/** Fetch /api/pbi-detect and populate the modal with the discovered schema. */
-async function _autoDetectAndRender(modal, entry, onEdit) {
-  const detectSection = modal.querySelector('.ds-detect-section');
-  if (!detectSection) return;
-
-  try {
-    const param = entry.blobUrl
-      ? `blobUrl=${encodeURIComponent(entry.blobUrl)}`
-      : `filename=${encodeURIComponent(entry.filename)}`;
-
-    const res  = await fetch(`/api/pbi-detect?${param}`);
-    const data = await res.json();
-
-    if (!res.ok) {
-      detectSection.innerHTML =
-        `<p class="ds-schema-error">⚠ Auto-detect failed: ${data.error || res.statusText}</p>`;
-      return;
+  // Dismiss on outside click or Escape
+  const onOutside = e => {
+    if (!popover.contains(e.target) && e.target !== triggerEl) {
+      _closePopover();
+      document.removeEventListener('click', onOutside, true);
+      document.removeEventListener('keydown', onEsc);
     }
-
-    // Build a source object from the detected info
-    const src = {
-      id:          crypto.randomUUID?.() ?? String(Date.now()),
-      label:       data.reportName || 'Auto-detected',
-      workspaceId: data.datasetWorkspaceId || data.workspaceId,
-      datasetId:   data.datasetId,
-    };
-
-    const saveBtnHtml = onEdit
-      ? `<div class="ds-save-detected">
-           <p class="ds-detect-hint">Dataset auto-detected from report file.</p>
-           <button type="button" class="btn-ds-save-link">💾 Save Data Source</button>
-         </div>`
-      : '';
-
-    // Inject schema block + optional save button right after the detect placeholder
-    detectSection.insertAdjacentHTML('afterend', _pbiSourceBlockHtml(src) + saveBtnHtml);
-    detectSection.remove();
-
-    // Wire the new schema block
-    const block = modal.querySelector(`.ds-schema-section[data-src-id="${src.id}"]`);
-    if (block) {
-      _wirePbiSourceBlock(block, src);
-      // Auto-load schema immediately since we just detected it
-      block.querySelector('.btn-ds-refresh')?.click();
+  };
+  const onEsc = e => {
+    if (e.key === 'Escape') {
+      _closePopover();
+      document.removeEventListener('click', onOutside, true);
+      document.removeEventListener('keydown', onEsc);
     }
-
-    // Wire save button
-    if (onEdit) {
-      const saveBtn = modal.querySelector('.btn-ds-save-link');
-      saveBtn?.addEventListener('click', async () => {
-        saveBtn.disabled    = true;
-        saveBtn.textContent = 'Saving…';
-        try {
-          await onEdit(entry, 'save', { powerBiSources: [src] });
-          saveBtn.textContent = '✓ Saved';
-        } catch {
-          saveBtn.disabled    = false;
-          saveBtn.textContent = '⚠ Save failed — retry';
-        }
-      });
-    }
-
-  } catch (err) {
-    const detectSection2 = modal.querySelector('.ds-detect-section');
-    if (detectSection2) {
-      detectSection2.innerHTML =
-        `<p class="ds-schema-error">⚠ Auto-detect failed: ${err.message}</p>`;
-    }
-  }
+  };
+  // Use capture so it fires before stopPropagation in card click handlers
+  setTimeout(() => {
+    document.addEventListener('click', onOutside, true);
+    document.addEventListener('keydown', onEsc);
+  }, 0);
 }
 
 // ---- Dashboard card modal ----------------------------------
@@ -479,26 +303,6 @@ function _openDashboardModal(entry, categories, onEdit) {
         <div class="color-swatches">${_swatchesHtml(initialColor)}</div>
       </div>
     </div>
-    <div class="pbi-link-section">
-      <div class="pbi-link-header">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/>
-          <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>
-        </svg>
-        Power BI Datasets
-        <button type="button" class="btn-pbi-add">+ Add</button>
-      </div>
-      <div class="pbi-source-list"></div>
-      <div class="pbi-add-form" hidden>
-        <input type="text" class="pbi-input pbi-f-label"     placeholder="Label (e.g. Lodestar)">
-        <input type="text" class="pbi-input pbi-f-workspace" placeholder="Workspace ID" spellcheck="false" autocomplete="off">
-        <input type="text" class="pbi-input pbi-f-dataset"   placeholder="Dataset ID"   spellcheck="false" autocomplete="off">
-        <div class="pbi-form-btns">
-          <button type="button" class="btn-pbi-confirm btn-card-save">Add</button>
-          <button type="button" class="btn-pbi-discard btn-card-cancel">Cancel</button>
-        </div>
-      </div>
-    </div>
     <div class="card-modal-footer">
       <button type="button" class="btn-card-save">Save</button>
       <button type="button" class="btn-card-delete">Delete</button>
@@ -516,77 +320,12 @@ function _openDashboardModal(entry, categories, onEdit) {
       modal.querySelector('.card-edit-category')
            .addEventListener('change', e => { pendingCategory = e.target.value; });
 
-      // ---- Multi-source PBI manager -------------------------
-      let pendingSources = JSON.parse(JSON.stringify(_getPbiSources(entry)));
-      const sourceList   = modal.querySelector('.pbi-source-list');
-      const addForm      = modal.querySelector('.pbi-add-form');
-      const addBtn       = modal.querySelector('.btn-pbi-add');
-
-      function renderSources() {
-        sourceList.innerHTML = pendingSources.length
-          ? pendingSources.map((s, i) => `
-              <div class="pbi-source-item">
-                <span class="pbi-source-label">${s.label || 'Dataset'}</span>
-                <span class="pbi-source-id">${s.datasetId.slice(0, 8)}…</span>
-                <button type="button" class="ds-remove-btn" data-index="${i}" aria-label="Remove">×</button>
-              </div>`).join('')
-          : '<p class="pbi-no-sources">No datasets linked.</p>';
-
-        sourceList.querySelectorAll('.ds-remove-btn').forEach(btn => {
-          btn.addEventListener('click', () => {
-            pendingSources.splice(parseInt(btn.dataset.index), 1);
-            renderSources();
-          });
-        });
-      }
-      renderSources();
-
-      addBtn.addEventListener('click', () => {
-        addForm.hidden = false;
-        addBtn.hidden  = true;
-        modal.querySelector('.pbi-f-label').focus();
-      });
-
-      modal.querySelector('.btn-pbi-discard').addEventListener('click', () => {
-        addForm.hidden = true;
-        addBtn.hidden  = false;
-        modal.querySelector('.pbi-f-label').value     = '';
-        modal.querySelector('.pbi-f-workspace').value = '';
-        modal.querySelector('.pbi-f-dataset').value   = '';
-      });
-
-      modal.querySelector('.btn-pbi-confirm').addEventListener('click', () => {
-        const wsId = modal.querySelector('.pbi-f-workspace').value.trim();
-        const dsId = modal.querySelector('.pbi-f-dataset').value.trim();
-        if (!wsId || !dsId) {
-          modal.querySelector(wsId ? '.pbi-f-dataset' : '.pbi-f-workspace').focus();
-          return;
-        }
-        pendingSources.push({
-          id:          crypto.randomUUID?.() ?? String(Date.now()),
-          label:       modal.querySelector('.pbi-f-label').value.trim() || 'Dataset',
-          workspaceId: wsId,
-          datasetId:   dsId,
-        });
-        addForm.hidden = true;
-        addBtn.hidden  = false;
-        modal.querySelector('.pbi-f-label').value     = '';
-        modal.querySelector('.pbi-f-workspace').value = '';
-        modal.querySelector('.pbi-f-dataset').value   = '';
-        renderSources();
-      });
-
       // ---- Save / Delete / Cancel ---------------------------
       modal.querySelector('.btn-card-save').addEventListener('click', async () => {
         const updates = {};
         if (pendingCategory !== entry.category) updates.category = pendingCategory;
         const pa = getPending();
         if (pa !== (entry.accentColor ?? null)) updates.accentColor = pa;
-        if (JSON.stringify(pendingSources) !== JSON.stringify(_getPbiSources(entry))) {
-          updates.powerBiSources     = pendingSources;
-          updates.powerBiWorkspaceId = null;   // clear legacy fields
-          updates.powerBiDatasetId   = null;
-        }
         _closeModal();
         if (Object.keys(updates).length > 0) await onEdit(entry, 'save', updates);
       });

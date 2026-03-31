@@ -12,6 +12,7 @@
  */
 
 const https = require('https');
+const { autoMatchOrRegister } = require('../data-sources/index');
 
 const CONTAINER     = 'dashboards';
 const REGISTRY_BLOB = 'registry.json';
@@ -57,6 +58,14 @@ module.exports = async function (context, req) {
     if (idx === -1) {
       context.res = { status: 404, body: { error: `Dashboard '${id}' not found in registry.` } };
       return;
+    }
+
+    // If a dataConnection is being set, auto-match or register it in the global registry
+    if (updates.dataConnection) {
+      const principalName = req.headers?.['x-ms-client-principal-name'];
+      updates.dataConnection = await autoMatchOrRegister(
+        updates.dataConnection, account, sasToken, principalName
+      ).catch(() => updates.dataConnection);  // silently degrade on error
     }
 
     registry[idx] = { ...registry[idx], ...updates };

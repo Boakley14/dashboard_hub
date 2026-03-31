@@ -303,6 +303,14 @@ $('publish-form').addEventListener('submit', async e => {
   }
 });
 
+// ---- Connection status helpers -----------------------------
+function _connectionStatus(d) {
+  if (d.dataConnection?.sourceId)  return { label: 'Connected', cls: 'ds-status-connected',  dot: '🟢' };
+  if (d.dataConnection)            return { label: 'Inline',    cls: 'ds-status-inline',     dot: '🟡' };
+  if (d.powerBiSources?.length)    return { label: 'Embedded',  cls: 'ds-status-embedded',   dot: '🔵' };
+  return                                  { label: 'No data',   cls: 'ds-status-none',        dot: '⚫' };
+}
+
 // ---- Manage dashboards -------------------------------------
 const manageList  = $('manage-list');
 const manageAlert = $('manage-alert');
@@ -320,15 +328,20 @@ async function loadManageList() {
       manageList.innerHTML = `<p style="color:var(--color-text-muted);font-size:var(--font-size-sm)">No dashboards published yet.</p>`;
       return;
     }
-    manageList.innerHTML = registry.map(d => `
-      <div class="manage-row" id="manage-row-${d.id}" style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) 0;border-bottom:1px solid var(--color-border);">
-        <div>
-          <div style="font-size:var(--font-size-sm);font-weight:var(--font-weight-medium);color:var(--color-text-heading)">${d.title}</div>
-          <div style="font-size:var(--font-size-xs);color:var(--color-text-muted)">${d.category} &mdash; ${d.filename}</div>
+    manageList.innerHTML = registry.map(d => {
+      const status = _connectionStatus(d);
+      return `
+      <div class="manage-row" id="manage-row-${d.id}">
+        <div class="manage-row-info">
+          <div class="manage-row-title">${d.title}</div>
+          <div class="manage-row-meta">${d.category || ''} &mdash; ${d.filename}</div>
         </div>
-        <button class="btn-danger" data-id="${d.id}" data-filename="${d.filename}" onclick="deleteDashboard(this)">Delete</button>
+        <div class="manage-row-actions">
+          <span class="ds-status-badge ${status.cls}" title="Data connection: ${status.label}">${status.dot} ${status.label}</span>
+          <button class="btn-danger" data-id="${d.id}" data-filename="${d.filename}" onclick="deleteDashboard(this)">Delete</button>
+        </div>
       </div>
-    `).join('');
+    `}).join('');
   } catch {
     manageList.innerHTML = `<p style="color:var(--color-text-muted);font-size:var(--font-size-sm)">Could not load dashboard list.</p>`;
   }
@@ -390,6 +403,230 @@ function initHubName() {
   });
 }
 
+// ---- Data Sources tab --------------------------------------
+function initDataSources() {
+  const dsList     = $('ds-list');
+  const dsAlert    = $('ds-alert');
+  const addForm    = $('ds-add-form');
+  const btnShow    = $('btn-show-add-ds');
+  const btnCancel1 = $('btn-cancel-add-ds');
+  const btnCancel2 = $('btn-cancel-add-ds-2');
+  const btnSave    = $('btn-save-ds');
+  const dialog     = $('ds-preview-dialog');
+  const previewTitle = $('ds-preview-title');
+  const previewBody  = $('ds-preview-body');
+  const btnClosePreview = $('btn-close-preview');
+
+  if (!dsList) return;
+
+  let _registry = [];
+
+  function showDsAlert(type, html) {
+    dsAlert.className = `alert alert-${type}`;
+    dsAlert.innerHTML = html;
+    dsAlert.hidden = false;
+    setTimeout(() => { dsAlert.hidden = true; }, 4000);
+  }
+
+  function openAddForm() {
+    addForm.hidden = false;
+    btnShow.hidden = true;
+    $('ds-f-name')?.focus();
+  }
+  function closeAddForm() {
+    addForm.hidden = true;
+    btnShow.hidden = false;
+    ['ds-f-name','ds-f-type','ds-f-description','ds-f-workspace','ds-f-dataset'].forEach(id => {
+      const el = $(id); if (el) el.value = el.defaultValue || '';
+    });
+    $('ds-f-type').value = 'pbi-data';
+    $('ds-f-endpoint').value = '/api/pbi-data';
+  }
+
+  btnShow?.addEventListener('click', openAddForm);
+  btnCancel1?.addEventListener('click', closeAddForm);
+  btnCancel2?.addEventListener('click', closeAddForm);
+
+  // Preview dialog close
+  btnClosePreview?.addEventListener('click', () => dialog?.close());
+  dialog?.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+
+  // ---- Load and render sources ----------------------------
+  async function loadSources() {
+    dsList.innerHTML = `<p style="color:var(--color-text-muted);font-size:var(--font-size-sm)">Loading…</p>`;
+    try {
+      const [sourcesRes, reg] = await Promise.all([
+        fetch('/api/data-sources'),
+        loadRegistry()
+      ]);
+      _registry = reg;
+      if (!sourcesRes.ok) throw new Error(`HTTP ${sourcesRes.status}`);
+      const sources = await sourcesRes.json();
+
+      if (!sources.length) {
+        dsList.innerHTML = `<p style="color:var(--color-text-muted);font-size:var(--font-size-sm)">No data sources registered yet. Click <strong>Add Source</strong> to get started.</p>`;
+        return;
+      }
+
+      dsList.innerHTML = '';
+      sources.forEach(src => dsList.appendChild(_buildSourceCard(src, reg)));
+
+    } catch (err) {
+      dsList.innerHTML = `<p style="color:var(--color-primary);font-size:var(--font-size-sm)">Failed to load data sources: ${err.message}</p>`;
+    }
+  }
+
+  function _buildSourceCard(src, registry) {
+    const connectedCount = registry.filter(d => d.dataConnection?.sourceId === src.id).length;
+    const card = document.createElement('div');
+    card.className = 'ds-source-card';
+    card.innerHTML = `
+      <div class="ds-source-card-header">
+        <div class="ds-source-card-info">
+          <span class="ds-source-card-name">${src.name}</span>
+          <span class="ds-type-pill">${src.type || 'pbi-data'}</span>
+        </div>
+        <div class="ds-source-card-actions">
+          ${src.queries?.length ? `<button type="button" class="btn-ds-preview btn-secondary-sm">Preview</button>` : ''}
+          <button type="button" class="btn-ds-delete btn-danger btn-sm" data-id="${src.id}" data-name="${src.name}">Delete</button>
+        </div>
+      </div>
+      ${src.description ? `<p class="ds-source-card-desc">${src.description}</p>` : ''}
+      <div class="ds-source-card-meta">
+        <span class="ds-source-meta-item">
+          <svg width="11" height="11" fill="none" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3" stroke="currentColor" stroke-width="2"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" stroke="currentColor" stroke-width="2"/></svg>
+          Dataset: ${src.datasetId ? src.datasetId.slice(0,8)+'…' : 'n/a'}
+        </span>
+        <span class="ds-source-meta-item">
+          <svg width="11" height="11" fill="none" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/></svg>
+          ${connectedCount} dashboard${connectedCount !== 1 ? 's' : ''} connected
+        </span>
+        ${src.queries?.length ? `<span class="ds-source-meta-item">${src.queries.length} quer${src.queries.length !== 1 ? 'ies' : 'y'}</span>` : ''}
+      </div>
+    `;
+
+    // Preview button
+    card.querySelector('.btn-ds-preview')?.addEventListener('click', () => _previewSource(src));
+
+    // Delete button
+    card.querySelector('.btn-ds-delete')?.addEventListener('click', async btn_elem => {
+      const btn = card.querySelector('.btn-ds-delete');
+      if (!confirm(`Delete data source "${src.name}"? Dashboards using it will lose their sourceId link.`)) return;
+      btn.disabled = true;
+      btn.textContent = 'Deleting…';
+      try {
+        const res = await fetch('/api/data-sources', {
+          method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: src.id })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP ${res.status}`);
+        }
+        card.remove();
+        showDsAlert('success', `<div><strong>${src.name}</strong> deleted.</div>`);
+        if (!dsList.querySelector('.ds-source-card')) {
+          dsList.innerHTML = `<p style="color:var(--color-text-muted);font-size:var(--font-size-sm)">No data sources registered yet.</p>`;
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+        showDsAlert('error', `<div><strong>Delete failed:</strong> ${err.message}</div>`);
+      }
+    });
+
+    return card;
+  }
+
+  async function _previewSource(src) {
+    const query = src.queries?.[0];
+    if (!query) return;
+
+    previewTitle.textContent = `${src.name} — ${query.queryName || query.id}`;
+    previewBody.innerHTML = `<p style="color:var(--color-text-muted)">Loading preview…</p>`;
+    dialog?.showModal();
+
+    try {
+      const params = new URLSearchParams({
+        query:       query.queryName || query.id,
+        workspaceId: src.workspaceId,
+        datasetId:   src.datasetId,
+        ...(query.params || {})
+      });
+      const res  = await fetch(`${src.endpoint || '/api/pbi-data'}?${params}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+      const rows    = (data.rows || []).slice(0, 20);
+      const columns = data.columns || (rows.length ? Object.keys(rows[0]) : []);
+
+      if (!rows.length) {
+        previewBody.innerHTML = `<p style="color:var(--color-text-muted)">No rows returned.</p>`;
+        return;
+      }
+
+      previewBody.innerHTML = `
+        <div class="ds-preview-table-wrap">
+          <table class="ds-preview-table">
+            <thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+            <tbody>${rows.map(row =>
+              `<tr>${columns.map(c => `<td>${row[c] ?? ''}</td>`).join('')}</tr>`
+            ).join('')}</tbody>
+          </table>
+        </div>
+        <p class="ds-preview-note">Showing up to 20 rows · Query: <code>${query.queryName || query.id}</code></p>
+      `;
+    } catch (err) {
+      previewBody.innerHTML = `<p style="color:var(--color-primary)">⚠ Preview failed: ${err.message}</p>`;
+    }
+  }
+
+  // ---- Save new source ------------------------------------
+  btnSave?.addEventListener('click', async () => {
+    const name        = $('ds-f-name')?.value.trim();
+    const workspaceId = $('ds-f-workspace')?.value.trim();
+    const datasetId   = $('ds-f-dataset')?.value.trim();
+
+    if (!name)        { $('ds-f-name')?.focus();      return; }
+    if (!workspaceId) { $('ds-f-workspace')?.focus(); return; }
+    if (!datasetId)   { $('ds-f-dataset')?.focus();   return; }
+
+    btnSave.disabled = true;
+    btnSave.textContent = 'Saving…';
+
+    try {
+      const source = {
+        name,
+        type:        $('ds-f-type')?.value.trim()        || 'pbi-data',
+        description: $('ds-f-description')?.value.trim() || '',
+        workspaceId,
+        datasetId,
+        endpoint:    $('ds-f-endpoint')?.value.trim()    || '/api/pbi-data',
+        queries:     [],
+      };
+
+      const res = await fetch('/api/data-sources', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+      closeAddForm();
+      showDsAlert('success', `<div><strong>${data.source.name}</strong> ${data.created ? 'registered' : 'updated'}.</div>`);
+      await loadSources();
+
+    } catch (err) {
+      showDsAlert('error', `<div><strong>Save failed:</strong> ${err.message}</div>`);
+    } finally {
+      btnSave.disabled = false;
+      btnSave.textContent = 'Save Source';
+    }
+  });
+
+  loadSources();
+}
+
 // ---- Init --------------------------------------------------
 initTabs();
 initThemeToggle();
@@ -399,3 +636,4 @@ initHubName();
 inputDate.value = todayIso();
 loadCategorySuggestions();
 loadManageList();
+initDataSources();
