@@ -48,8 +48,22 @@ async function init() {
   // Update browser tab title
   document.title = `${entry.title} — 10 Federal`;
 
+  // Resolve the best src for this dashboard.
+  // Prefer the same-origin static path (./dashboards/<filename>) so that the
+  // iframe shares the SWA's auth cookies and can call /api/* without CORS issues.
+  // Fall back to blobUrl only when the static file doesn't exist (e.g. uploaded
+  // via Settings but never pushed to git).
+  const staticPath  = entry.filename ? `./dashboards/${entry.filename}` : null;
+  let resolvedSrc   = entry.blobUrl || staticPath;    // pessimistic default
+  if (staticPath) {
+    try {
+      const probe = await fetch(staticPath, { method: 'HEAD' });
+      if (probe.ok) resolvedSrc = staticPath;         // static file found → use it
+    } catch { /* network error — keep blobUrl fallback */ }
+  }
+
   // "Open in new tab" button always available in the bar
-  const rawSrc = entry.blobUrl || `./dashboards/${entry.filename}`;
+  const rawSrc = resolvedSrc;
   if (newtabBtn) {
     newtabBtn.href = rawSrc;
     newtabBtn.hidden = false;
@@ -63,10 +77,11 @@ async function init() {
     return;
   }
 
-  // Mount iframe
+  // Mount iframe — pass resolvedSrc so iframe.js doesn't re-pick blobUrl
+  const mountEntry = { ...entry, _resolvedSrc: resolvedSrc };
   hideSpinner();
   show('dashboard-iframe');
-  mountIframe(entry);
+  mountIframe(mountEntry);
 
   // ── Live data refresh ──────────────────────────────────────
   // Show the "↻ Refresh Data" button only when the entry has a stored dataConnection.

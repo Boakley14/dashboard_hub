@@ -17,7 +17,8 @@ export function mountIframe(entry) {
   const iframe = document.getElementById('dashboard-iframe');
   if (!iframe) return;
 
-  const src = entry.blobUrl || `./dashboards/${entry.filename}`;
+  // Use pre-resolved src from viewer.js (static SWA path preferred over blobUrl)
+  const src = entry._resolvedSrc || entry.blobUrl || `./dashboards/${entry.filename}`;
 
   // Reset state
   hideFallback();
