@@ -52,6 +52,22 @@
     </button>
     <span id="refresh-timestamp" class="viewer-refresh-ts" hidden></span>
 
+    <!-- Dashboard Info panel toggle (shown by viewer.js) -->
+    <button
+      id="btn-info"
+      class="btn-viewer-action btn-info-toggle"
+      type="button"
+      aria-label="Dashboard info and settings"
+      aria-expanded="false"
+      hidden
+    >
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+        <path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      Info
+    </button>
+
     <!-- Open in new tab button (filled by viewer.js) -->
     <a
       id="btn-newtab"
@@ -105,6 +121,228 @@
     <a class="btn-primary" href="index.html">← Back to Hub</a>
   </div>
 
+  <!-- ====================================================
+       DASHBOARD INFO / SETTINGS PANEL (Feature 4, 6, 7)
+       ===================================================== -->
+  <aside id="info-panel" class="info-panel" aria-label="Dashboard information" hidden>
+    <div class="ip-header">
+      <h2 class="ip-title">Dashboard Info</h2>
+      <button id="ip-close" class="ip-close" aria-label="Close info panel">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="ip-body">
+
+      <!-- Details -->
+      <section class="ip-section">
+        <h3 class="ip-section-title">Details</h3>
+        <dl class="ip-dl">
+          <dt>Title</dt>    <dd id="ip-title">—</dd>
+          <dt>Author</dt>   <dd id="ip-author">—</dd>
+          <dt>Published</dt><dd id="ip-date">—</dd>
+          <dt>Category</dt> <dd id="ip-category">—</dd>
+          <dt>Tags</dt>     <dd id="ip-tags">—</dd>
+        </dl>
+      </section>
+
+      <!-- Data Connection (Feature 4) -->
+      <section id="ip-connection-section" class="ip-section" hidden>
+        <h3 class="ip-section-title">Data Connection</h3>
+        <dl class="ip-dl">
+          <dt>Workspace</dt>    <dd id="ip-workspace" class="ip-mono">—</dd>
+          <dt>Dataset</dt>      <dd id="ip-dataset"   class="ip-mono">—</dd>
+          <dt>Queries</dt>      <dd id="ip-queries">—</dd>
+          <dt>Refresh Mode</dt> <dd id="ip-refresh-mode">—</dd>
+        </dl>
+      </section>
+
+      <!-- Refresh Status (Feature 7) -->
+      <section id="ip-refresh-section" class="ip-section" hidden>
+        <h3 class="ip-section-title">Last Refresh</h3>
+        <dl class="ip-dl">
+          <dt>Time</dt>    <dd id="ip-refresh-time">Never</dd>
+          <dt>Status</dt>  <dd id="ip-refresh-status">—</dd>
+          <dt>Duration</dt><dd id="ip-refresh-duration">—</dd>
+        </dl>
+      </section>
+
+      <!-- Actions -->
+      <section id="ip-actions-section" class="ip-section ip-actions" hidden>
+        <button id="ip-preview-btn" class="btn-ip-action">
+          <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg>
+          Preview Data
+        </button>
+      </section>
+
+      <!-- Connection Inspector (Feature 6) -->
+      <section id="ip-inspector-section" class="ip-section" hidden>
+        <h3 class="ip-section-title">
+          Connection Config
+          <button id="ip-inspector-toggle" class="ip-toggle-btn">Show</button>
+        </h3>
+        <pre id="ip-inspector-json" class="ip-json" hidden></pre>
+      </section>
+
+    </div>
+  </aside>
+
+  <!-- Overlay backdrop for info panel -->
+  <div id="info-backdrop" class="info-backdrop" hidden></div>
+
+  <!-- ====================================================
+       DATA PREVIEW MODAL (Feature 5)
+       ===================================================== -->
+  <div id="preview-modal" class="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-modal-title" hidden>
+    <div class="preview-modal-inner">
+      <div class="preview-modal-header">
+        <h3 id="preview-modal-title">Data Preview</h3>
+        <select id="preview-query-sel" class="preview-query-sel" aria-label="Select query to preview"></select>
+        <button id="preview-refresh-btn" class="btn-preview-action" title="Re-run preview">
+          <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button id="preview-close" class="ip-close" aria-label="Close preview">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div id="preview-status" class="preview-status"></div>
+      <div id="preview-grid-wrap" class="preview-grid-wrap">
+        <div id="preview-loading" class="preview-loading" hidden>Fetching data from Lodestar…</div>
+        <div id="preview-empty"   class="preview-empty"   hidden>No rows returned.</div>
+        <div id="preview-grid"    class="preview-grid"></div>
+      </div>
+      <p class="preview-note">Read-only · max 50 rows · Lodestar Semantic Model</p>
+    </div>
+  </div>
+
   <script type="module" src="src/viewer.js"></script>
+
+  <style>
+    /* ── Info Panel ────────────────────────────────────────────── */
+    .btn-info-toggle { margin-left: 4px; }
+
+    .info-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 300;
+      animation: fadeIn .15s ease;
+    }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+    .info-panel {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 340px;
+      background: #fff; border-left: 1px solid #d1dce8;
+      box-shadow: -4px 0 24px rgba(0,0,0,.12);
+      z-index: 301; display: flex; flex-direction: column;
+      font-size: 13px; animation: slideIn .2s ease;
+    }
+    @keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
+    @media (prefers-color-scheme: dark) {
+      .info-panel { background: #1e2736; border-color: #2d3748; color: #e2e8f0; }
+    }
+
+    .ip-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; border-bottom: 1px solid #d1dce8; flex-shrink: 0;
+    }
+    .ip-title { font-size: .9rem; font-weight: 700; margin: 0; }
+    .ip-close {
+      background: none; border: none; cursor: pointer; padding: 4px;
+      color: #5a6a7e; border-radius: 4px; display: flex; align-items: center;
+    }
+    .ip-close:hover { background: #f1f5f9; color: #1a2535; }
+
+    .ip-body { overflow-y: auto; flex: 1; padding: 0 0 16px; }
+
+    .ip-section {
+      padding: 12px 16px; border-bottom: 1px solid #eef2f7;
+    }
+    .ip-section-title {
+      font-size: .68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: #5a6a7e; margin: 0 0 8px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .ip-dl { display: grid; grid-template-columns: 100px 1fr; gap: 5px 8px; margin: 0; }
+    .ip-dl dt { font-size: .72rem; color: #5a6a7e; font-weight: 600; padding-top: 1px; }
+    .ip-dl dd { font-size: .78rem; word-break: break-all; margin: 0; }
+    .ip-mono { font-family: monospace; font-size: .71rem !important; color: #1d4ed8; }
+
+    .ip-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-ip-action {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #1b3a6b; color: #fff; border: none; border-radius: 5px;
+      padding: 7px 14px; font-size: .76rem; font-weight: 600; cursor: pointer;
+    }
+    .btn-ip-action:hover { background: #122850; }
+
+    .ip-toggle-btn {
+      background: none; border: 1px solid #d1dce8; border-radius: 3px;
+      font-size: .65rem; color: #5a6a7e; cursor: pointer; padding: 1px 6px;
+    }
+    .ip-json {
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;
+      padding: 10px; font-size: .68rem; overflow-x: auto;
+      max-height: 280px; overflow-y: auto; white-space: pre; margin-top: 8px;
+    }
+
+    .ip-badge {
+      display: inline-block; padding: 1px 7px; border-radius: 99px;
+      font-size: .65rem; font-weight: 700;
+    }
+    .ip-badge-success { background: #dcfce7; color: #15803d; }
+    .ip-badge-error   { background: #fee2e2; color: #b91c1c; }
+    .ip-badge-partial { background: #fef9c3; color: #854d0e; }
+    .ip-badge-pending { background: #f1f5f9; color: #5a6a7e; }
+
+    /* ── Preview Modal ─────────────────────────────────────────── */
+    .preview-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 400; display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .preview-modal-inner {
+      background: #fff; border-radius: 8px; width: 100%; max-width: 900px;
+      max-height: 85vh; display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    }
+    .preview-modal-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 16px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
+    }
+    .preview-modal-header h3 { font-size: .9rem; font-weight: 700; margin: 0; flex: none; }
+    .preview-query-sel {
+      flex: 1; height: 30px; padding: 0 8px; border: 1px solid #d1dce8;
+      border-radius: 4px; font-size: .78rem; background: #f8fafc;
+    }
+    .btn-preview-action {
+      background: #f1f5f9; border: 1px solid #d1dce8; border-radius: 4px;
+      padding: 5px 8px; cursor: pointer; display: flex; align-items: center; color: #1b3a6b;
+    }
+    .btn-preview-action:hover { background: #e2e8f0; }
+
+    .preview-status { padding: 6px 16px; font-size: .75rem; color: #5a6a7e; flex-shrink: 0; min-height: 26px; }
+    .preview-status.err { color: #b91c1c; }
+
+    .preview-grid-wrap { flex: 1; overflow: auto; padding: 0 16px 8px; }
+    .preview-loading, .preview-empty { padding: 32px; text-align: center; color: #5a6a7e; font-size: .82rem; }
+
+    .preview-grid table { border-collapse: collapse; width: 100%; font-size: .75rem; }
+    .preview-grid th {
+      background: #f1f5f9; position: sticky; top: 0; padding: 6px 10px;
+      text-align: left; font-size: .65rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .04em; color: #5a6a7e; border-bottom: 2px solid #d1dce8;
+      white-space: nowrap;
+    }
+    .preview-grid td {
+      padding: 5px 10px; border-bottom: 1px solid #f1f5f9;
+      color: #1a2535; white-space: nowrap; max-width: 200px;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .preview-grid tr:hover td { background: #f8fafc; }
+    .preview-grid td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .preview-note {
+      padding: 8px 16px; font-size: .68rem; color: #5a6a7e;
+      border-top: 1px solid #e2e8f0; flex-shrink: 0; margin: 0;
+    }
+  </style>
 </body>
 </html>

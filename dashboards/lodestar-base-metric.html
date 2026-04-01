@@ -277,6 +277,31 @@
 
 </div><!-- /content -->
 
+<!-- ═══════════════════════════════════════════════════════════
+     DASHBOARD HUB CONFIG (Feature 1 — parsed by /api/upload)
+     ═══════════════════════════════════════════════════════════ -->
+<script id="dashboard-hub-config" type="application/json">
+{
+  "version": "1.0",
+  "dashboardId": "lodestar-base-metric",
+  "title": "Base Metric Explorer",
+  "description": "Single-metric deep-dive with monthly trend, KPI cards, and prior-month/prior-year comparisons across all Lodestar base metrics.",
+  "workspaceId": "df46ca8b-208f-4c39-ad9f-829f8379a5bd",
+  "datasetId": "a28bcbcc-e7c9-4691-ad27-0f1cd7fdc19d",
+  "author": "10 Federal Team",
+  "queries": [
+    { "id": "filter-options", "queryName": "filter-options", "params": {} },
+    { "id": "metric-trend",   "queryName": "metric-trend",   "params": {} }
+  ],
+  "visualBindings": [
+    { "queryId": "filter-options", "target": "filter-dropdowns", "type": "cascading-filter" },
+    { "queryId": "metric-trend",   "target": "trend-chart",      "type": "line-chart"       },
+    { "queryId": "metric-trend",   "target": "kpi-cards",        "type": "kpi"              },
+    { "queryId": "metric-trend",   "target": "monthly-table",    "type": "table"            }
+  ]
+}
+</script>
+
 <script>
 // ═══════════════════════════════════════════════════════════
 //  CONFIG — matches api/pbi-data named queries + filters
@@ -823,6 +848,89 @@ function initEvents() {
 
   document.getElementById('btn-refresh').addEventListener('click', () => loadTrendData());
 }
+
+// ═══════════════════════════════════════════════════════════
+//  DASHBOARD HUB INJECTION LAYER (Feature 10)
+//  The Hub viewer calls window.dashboardHub.updateData(results)
+//  after executing queries centrally via /api/refresh.
+//  results = { [queryId]: { rows, columns, count } }
+// ═══════════════════════════════════════════════════════════
+window.dashboardHub = {
+  updateData(results) {
+    let didUpdate = false;
+
+    // Inject filter-options (owner/property dropdowns)
+    if (results['filter-options']?.rows?.length) {
+      const rows = results['filter-options'].rows;
+      state.owners  = [];
+      state.propMap = {};
+      rows.forEach(r => {
+        const type  = r.type  || r['[type]']  || '';
+        const value = r.value || r['[value]'] || '';
+        const group = r.group || r['[group]'] || '';
+        if (!value) return;
+        if (type === 'owner') {
+          state.owners.push(value);
+        } else if (type === 'property') {
+          if (!state.propMap[group]) state.propMap[group] = [];
+          state.propMap[group].push(value);
+        }
+      });
+      // Rebuild owner dropdown
+      const ownerSel = document.getElementById('filter-owner');
+      if (ownerSel) {
+        ownerSel.innerHTML = '<option value="">— All Owners —</option>';
+        state.owners.sort().forEach(o => {
+          const cnt = (state.propMap[o] || []).length;
+          ownerSel.insertAdjacentHTML('beforeend',
+            `<option value="${esc(o)}">${o}${cnt ? ' (' + cnt + ')' : ''}</option>`);
+        });
+      }
+      rebuildPropertyDropdown();
+      didUpdate = true;
+    }
+
+    // Inject metric-trend data
+    if (results['metric-trend']?.rows?.length) {
+      const rows = results['metric-trend'].rows.map(r => ({
+        Year:       r.Year       ?? r['[Year]'],
+        Month:      r.Month      ?? r['[Month]'],
+        'Month Name': r['Month Name'] ?? r['[Month Name]'],
+        ...r,
+      }));
+      rows.sort((a, b) => (a.Year - b.Year) || (a.Month - b.Month));
+
+      // Rebuild state from new data
+      state.allRows = rows;
+      const [fy, fm] = state.fromYM.split('-').map(Number);
+      const [ty, tm] = state.toYM.split('-').map(Number);
+      const fromKey = fy * 100 + fm;
+      const toKey   = ty * 100 + tm;
+      state.rows = rows.filter(r => {
+        const k = r.Year * 100 + r.Month;
+        return k >= fromKey && k <= toKey;
+      });
+
+      renderAll();
+      didUpdate = true;
+    }
+
+    // Signal completion back to Hub viewer
+    if (didUpdate) {
+      window.parent?.postMessage(
+        { type: 'pbi-refresh-done', refreshedAt: new Date().toISOString() },
+        '*'
+      );
+    }
+  },
+};
+
+// Also listen for postMessage injection (cross-origin fallback)
+window.addEventListener('message', e => {
+  if (e.data?.type === 'hub-data-inject' && e.data.results) {
+    window.dashboardHub.updateData(e.data.results);
+  }
+});
 
 // ═══════════════════════════════════════════════════════════
 //  INIT

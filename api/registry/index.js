@@ -1,17 +1,21 @@
 /**
  * api/registry/index.js
- * HTTP GET — returns the dashboard registry from Azure Blob Storage.
- * Returns [] if registry.json doesn't exist yet.
+ * HTTP GET — returns the merged dashboard registry.
+ *
+ * Reads both registry.json (legacy flat list) and index.json (new extended
+ * list written by the upload API). Entries in index.json take precedence over
+ * same-ID entries in registry.json, enabling a smooth migration path where
+ * old dashboards remain visible until re-uploaded.
  *
  * Required app settings:
- *   AZURE_STORAGE_ACCOUNT_NAME  — e.g. 10fedhub
- *   AZURE_STORAGE_SAS_TOKEN     — account SAS token (no leading ?)
+ *   AZURE_STORAGE_ACCOUNT_NAME, AZURE_STORAGE_SAS_TOKEN
  */
 
 const https = require('https');
 
 const CONTAINER    = 'dashboards';
 const REGISTRY_BLOB = 'registry.json';
+const INDEX_BLOB    = 'index.json';
 
 module.exports = async function (context, req) {
   const account  = process.env.AZURE_STORAGE_ACCOUNT_NAME;
@@ -24,22 +28,53 @@ module.exports = async function (context, req) {
 
   try {
     const host = `${account}.blob.core.windows.net`;
-    const res  = await blobGet(host, `/${CONTAINER}/${REGISTRY_BLOB}?${sasToken}`);
 
-    if (res.statusCode === 404) {
-      context.res = { status: 200, headers: { 'Content-Type': 'application/json' }, body: [] };
-      return;
+    // Fetch both sources in parallel
+    const [regRes, idxRes] = await Promise.all([
+      blobGet(host, `/${CONTAINER}/${REGISTRY_BLOB}?${sasToken}`),
+      blobGet(host, `/${CONTAINER}/${INDEX_BLOB}?${sasToken}`),
+    ]);
+
+    let legacy  = [];
+    let indexed = [];
+
+    if (regRes.statusCode === 200) {
+      try { legacy  = JSON.parse(regRes.body); } catch { legacy  = []; }
+    }
+    if (idxRes.statusCode === 200) {
+      try { indexed = JSON.parse(idxRes.body); } catch { indexed = []; }
     }
 
-    if (res.statusCode !== 200) {
-      throw new Error(`Failed to load registry: ${res.statusCode}`);
-    }
+    // Merge: index.json entries win over registry.json for the same ID.
+    // index.json uses dashboardId; registry.json uses id — normalise both.
+    const indexedIds = new Set(indexed.map(e => e.dashboardId || e.id));
+    const legacyOnly = legacy.filter(e => !indexedIds.has(e.id));
 
-    const registry = JSON.parse(res.body);
+    // Normalise index entries to match the shape callers expect
+    const normIndex = indexed.map(e => ({
+      id:          e.dashboardId || e.id,
+      title:       e.title       || '',
+      description: e.description || '',
+      category:    e.category    || '',
+      author:      e.author      || '',
+      tags:        e.tags        || [],
+      filename:    e.filename    || '',
+      blobUrl:     e.blobUrl     || '',
+      dateAdded:   e.createdUtc  ? e.createdUtc.slice(0, 10) : '',
+      // Extended fields (available to viewer/settings panel)
+      datasetId:     e.datasetId     || null,
+      workspaceId:   e.workspaceId   || null,
+      queryCount:    e.queryCount    || 0,
+      hubCompatible: e.hubCompatible || false,
+      lastRefreshUtc: e.lastRefreshUtc || null,
+    }));
+
+    const merged = [...legacyOnly, ...normIndex];
+
     context.res = {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: registry
+      body: merged,
     };
 
   } catch (err) {
@@ -50,16 +85,10 @@ module.exports = async function (context, req) {
 
 function blobGet(host, path) {
   return new Promise((resolve, reject) => {
-    const options = {
-      hostname: host,
-      path,
-      method: 'GET',
-      headers: {
-        'x-ms-date':    new Date().toUTCString(),
-        'x-ms-version': '2020-04-08'
-      }
-    };
-    const req = https.request(options, res => {
+    const req = https.request({
+      hostname: host, path, method: 'GET',
+      headers: { 'x-ms-date': new Date().toUTCString(), 'x-ms-version': '2020-04-08' },
+    }, res => {
       let body = '';
       res.on('data', c => body += c);
       res.on('end', () => resolve({ statusCode: res.statusCode, body }));
