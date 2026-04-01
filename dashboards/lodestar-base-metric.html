@@ -281,7 +281,19 @@
 // ═══════════════════════════════════════════════════════════
 //  CONFIG — matches api/pbi-data named queries + filters
 // ═══════════════════════════════════════════════════════════
-const API = '/api/pbi-data';          // Azure Functions endpoint
+// When the dashboard is embedded as a cross-origin iframe (loaded from Azure Blob Storage),
+// relative paths resolve against the blob origin — not the SWA.
+// Try the parent frame's origin first; if blocked (cross-origin), fall back to referrer,
+// then the known production domain.
+const API = (() => {
+  try {
+    const origin = window.top !== window ? window.top.location.origin : location.origin;
+    return origin + '/api/pbi-data';
+  } catch {
+    try { return new URL(document.referrer).origin + '/api/pbi-data'; } catch {}
+    return 'https://dashboards.10federalstorage.com/api/pbi-data';
+  }
+})();
 const DEFAULT_FROM = '2025-04';
 const DEFAULT_TO   = '2026-03';
 
