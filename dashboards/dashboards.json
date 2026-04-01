@@ -1,5 +1,45 @@
 [
   {
+    "id": "daily-operations",
+    "title": "Daily Operations",
+    "description": "Live portfolio performance dashboard covering occupancy, financial performance, rental activity, and trend analysis across all 164 properties. Powered by the Lodestar semantic model.",
+    "category": "Operations",
+    "tags": ["operations", "occupancy", "financial", "leads", "live", "lodestar"],
+    "author": "10 Federal Team",
+    "dateAdded": "2026-03-31",
+    "filename": "daily-operations.html",
+    "thumbnail": "",
+    "openInNewTab": false,
+    "dataConnection": {
+      "sourceId": "lodestar",
+      "workspaceId": "df46ca8b-208f-4c39-ad9f-829f8379a5bd",
+      "datasetId": "a28bcbcc-e7c9-4691-ad27-0f1cd7fdc19d",
+      "endpoint": "/api/pbi-data"
+    }
+  },
+  {
+    "id": "lodestar-base-metric",
+    "title": "Base Metric Explorer",
+    "description": "Single-metric deep-dive showing monthly trend, KPIs, and prior-month / prior-year comparisons. Supports all Lodestar base metrics with cascading Owner → Property filters.",
+    "category": "Operations",
+    "tags": ["operations", "occupancy", "financial", "leads", "live", "lodestar", "trend"],
+    "author": "10 Federal Team",
+    "dateAdded": "2026-03-31",
+    "filename": "lodestar-base-metric.html",
+    "thumbnail": "",
+    "openInNewTab": false,
+    "dataConnection": {
+      "sourceId": "lodestar",
+      "workspaceId": "df46ca8b-208f-4c39-ad9f-829f8379a5bd",
+      "datasetId": "a28bcbcc-e7c9-4691-ad27-0f1cd7fdc19d",
+      "endpoint": "/api/pbi-data",
+      "queries": [
+        { "id": "filter-options", "queryName": "filter-options",  "params": {} },
+        { "id": "metric-trend",   "queryName": "metric-trend",    "params": {} }
+      ]
+    }
+  },
+  {
     "id": "sample-sales-overview",
     "title": "Sample — Sales Overview",
     "description": "A placeholder card showing how a Sales dashboard will appear in the hub. Replace this with a real .html file.",

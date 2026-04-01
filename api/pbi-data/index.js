@@ -6,17 +6,19 @@
  *
  * ── Named query shapes ──────────────────────────────────────────────────────
  *   portfolio-kpis        — single-row KPIs (units, occupancy, revenue, NOI, leads)
+ *   metric-trend          — monthly values for ALL base metrics (use for Base Metric Explorer)
  *   financial-trend       — monthly P&L (revenue, OpEx, NOI, margin, revenue components)
  *   occupancy-by-property — per-property snapshot (units, occupancy, revenue, NOI)
  *   move-activity-trend   — monthly move-in / move-out counts
  *   leads-trend           — monthly leads, conversions, conversion rate
  *   revenue-breakdown     — monthly rental / fee / insurance revenue split
- *   filter-options        — distinct values for filter dropdowns (properties, markets, states)
+ *   filter-options        — distinct values for filter dropdowns (owners, properties, markets)
  *
  * ── Dynamic filter params (work on any query) ───────────────────────────────
  *   months    — last N months for trend queries (default 12, max 36)
  *   dateFrom  — start month  YYYY-MM  (overrides months)
  *   dateTo    — end month    YYYY-MM  (overrides months)
+ *   owner     — exact Owner value (may repeat: &owner=A&owner=B)
  *   property  — exact Property Name (may repeat: &property=A&property=B)
  *   market    — exact Market value
  *   state     — exact State value
@@ -86,6 +88,18 @@ function buildFilters(params) {
     summary.months = n;
   }
 
+  // ── Owner filter ─────────────────────────────────────────
+  // Supports multiple values: &owner=A&owner=B
+  const owners = [params.owner].flat().filter(Boolean);
+  if (owners.length === 1) {
+    conditions.push(`'Properties'[Owner] = "${escDax(owners[0])}"`);
+    summary.owner = owners[0];
+  } else if (owners.length > 1) {
+    const list = owners.map(o => `"${escDax(o)}"`).join(', ');
+    conditions.push(`'Properties'[Owner] IN { ${list} }`);
+    summary.owner = owners;
+  }
+
   // ── Property filter ─────────────────────────────────────
   // Supports multiple values: &property=A&property=B
   const properties = [params.property].flat().filter(Boolean);
@@ -146,6 +160,34 @@ function applyFilters(innerDax, conditions) {
 // ============================================================
 
 const NAMED_QUERIES = {
+
+  /**
+   * metric-trend
+   * Monthly values for every supported base metric — used by the Base Metric Explorer.
+   * Switching the selected metric client-side requires no additional API call.
+   * Filters (owner, property, dateFrom, dateTo) all apply.
+   */
+  'metric-trend': (_p) => `
+EVALUATE
+SUMMARIZECOLUMNS(
+  'Dates'[Year],
+  'Dates'[Month],
+  'Dates'[Month Name],
+  "Unit Occupancy",        [Unit Occupancy],
+  "Total Units",           [Total Units],
+  "Occupied Units",        [Occupied Units],
+  "Vacant Units",          [Vacant Units],
+  "Revenue",               [Revenue],
+  "Rental Revenue",        [Rental Revenue],
+  "Operating Expenses",    [Operating Expenses],
+  "NOI",                   [NOI],
+  "Total Leads",           [Total Leads],
+  "Total Lead Conversion", [Total Lead Conversion],
+  "Total Move Ins",        [Total Move Ins],
+  "Total Move Outs",       [Total Move Outs],
+  "Net Move Ins",          [Net Move Ins],
+  "Loss to Lease",         [Loss to Lease]
+)`.trim(),
 
   /** Single-row portfolio-wide KPIs. */
   'portfolio-kpis': (_p) => `
@@ -243,21 +285,40 @@ ORDER BY 'Dates'[Year] DESC, 'Dates'[Month] DESC`.trim(),
    * — actually returns three separate result sets concatenated as:
    *   [{ type: "property", value }, { type: "market", value }, { type: "state", value }]
    */
+  /**
+   * filter-options
+   * Returns three row types for building cascading dropdowns:
+   *   type="owner"    → distinct owner names
+   *   type="property" → property names, group=owner (enables cascading)
+   *   type="market"   → distinct market names
+   * All three share the same three columns: type, value, group.
+   */
   'filter-options': (_p) => `
 EVALUATE
 UNION(
   SELECTCOLUMNS(
-    FILTER(VALUES('Properties'[Property Name]), NOT ISBLANK('Properties'[Property Name])),
-    "type", "property",
-    "value", 'Properties'[Property Name]
+    FILTER(VALUES('Properties'[Owner]), NOT ISBLANK('Properties'[Owner])),
+    "type",  "owner",
+    "value", 'Properties'[Owner],
+    "group", ""
+  ),
+  SELECTCOLUMNS(
+    FILTER(
+      SUMMARIZECOLUMNS('Properties'[Owner], 'Properties'[Property Name]),
+      NOT ISBLANK('Properties'[Property Name])
+    ),
+    "type",  "property",
+    "value", 'Properties'[Property Name],
+    "group", 'Properties'[Owner]
   ),
   SELECTCOLUMNS(
     FILTER(VALUES('Properties'[Market]), NOT ISBLANK('Properties'[Market])),
-    "type", "market",
-    "value", 'Properties'[Market]
+    "type",  "market",
+    "value", 'Properties'[Market],
+    "group", ""
   )
 )
-ORDER BY [type], [value]`.trim(),
+ORDER BY [type], [group], [value]`.trim(),
 
 };
 

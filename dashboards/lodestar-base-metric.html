@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Base Metric Explorer — 10 Federal Lodestar</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --navy:      #1b3a6b;
+      --navy-dark: #122850;
+      --gold:      #c8a84b;
+      --bg:        #f0f4f8;
+      --surface:   #ffffff;
+      --border:    #d1dce8;
+      --text:      #1a2535;
+      --muted:     #5a6a7e;
+      --green:     #15803d;
+      --green-bg:  #dcfce7;
+      --red:       #b91c1c;
+      --red-bg:    #fee2e2;
+      --blue:      #1d4ed8;
+      --blue-bg:   #dbeafe;
+      --radius:    6px;
+      --shadow:    0 1px 3px rgba(0,0,0,.08);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 13px; min-height: 100vh; }
+
+    /* Header */
+    .hdr { background: var(--navy); color: #fff; padding: 0 20px; height: 48px; display: flex; align-items: center; gap: 12px; border-bottom: 3px solid var(--gold); position: sticky; top: 0; z-index: 200; }
+    .hdr-logo { width: 28px; height: 28px; background: var(--gold); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 11px; color: var(--navy); flex-shrink: 0; }
+    .hdr-title { font-size: 1rem; font-weight: 700; }
+    .hdr-sub   { font-size: .7rem; color: rgba(255,255,255,.55); }
+    .hdr-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .hdr-meta  { font-size: .68rem; color: rgba(255,255,255,.5); text-align: right; line-height: 1.4; }
+    #btn-refresh { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: #fff; border-radius: var(--radius); padding: 5px 14px; font-size: .73rem; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background .15s; }
+    #btn-refresh:hover:not(:disabled) { background: rgba(255,255,255,.22); }
+    #btn-refresh:disabled { opacity: .5; cursor: not-allowed; }
+    .spin { animation: spin .7s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Filter bar */
+    .filters { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 20px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; }
+    .fg { display: flex; flex-direction: column; gap: 3px; }
+    .fl { font-size: .63rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    select.fs, input.fs { height: 32px; padding: 0 9px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: .78rem; min-width: 150px; }
+    select.fs:focus, input.fs:focus { outline: 2px solid var(--navy); outline-offset: -1px; }
+    #filter-metric { min-width: 210px; font-weight: 600; border-color: var(--navy); color: var(--navy); }
+    .date-row { display: flex; align-items: center; gap: 6px; }
+    .date-sep  { color: var(--muted); font-size: .75rem; }
+    .chk-group { display: flex; gap: 14px; }
+    .chk-item  { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+    .chk-item input { accent-color: var(--navy); width: 14px; height: 14px; }
+    .chk-item span  { font-size: .75rem; }
+
+    /* Main */
+    .content { padding: 16px 20px; max-width: 1400px; margin: 0 auto; }
+
+    /* Status */
+    .status { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: var(--radius); font-size: .75rem; margin-bottom: 14px; }
+    .status.hidden { display: none; }
+    .status.info    { background: var(--blue-bg);  color: var(--blue); border: 1px solid #bfdbfe; }
+    .status.success { background: var(--green-bg); color: var(--green); border: 1px solid #bbf7d0; }
+    .status.error   { background: var(--red-bg);   color: var(--red);   border: 1px solid #fecaca; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .info .status-dot    { background: var(--blue); }
+    .success .status-dot { background: var(--green); }
+    .error .status-dot   { background: var(--red); }
+
+    /* KPI row */
+    .kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 14px; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: var(--radius); padding: 13px 15px; box-shadow: var(--shadow); }
+    .kpi.c-navy  { border-left-color: var(--navy); }
+    .kpi.c-gold  { border-left-color: var(--gold); }
+    .kpi.c-green { border-left-color: var(--green); }
+    .kpi.c-red   { border-left-color: var(--red); }
+    .kpi-lbl  { font-size: .63rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 5px; }
+    .kpi-val  { font-size: 1.55rem; font-weight: 700; color: var(--text); line-height: 1; }
+    .kpi-sub  { font-size: .68rem; color: var(--muted); margin-top: 3px; }
+    .kpi-delta { margin-top: 5px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .tag  { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: .68rem; font-weight: 700; }
+    .tag-up   { background: var(--green-bg); color: var(--green); }
+    .tag-down { background: var(--red-bg);   color: var(--red); }
+    .tag-neu  { background: #f1f5f9;          color: var(--muted); }
+    .tag-pct  { font-size: .68rem; color: var(--muted); }
+
+    /* Skeleton */
+    .skel { background: linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%); background-size: 200%; animation: shimmer 1.4s infinite; border-radius: 4px; }
+    @keyframes shimmer { 0%{background-position:200%} 100%{background-position:-200%} }
+    .skel-val { height: 28px; width: 80px; margin: 4px 0; }
+    .skel-sub { height: 12px; width: 120px; }
+
+    /* Chart card */
+    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); margin-bottom: 14px; }
+    .chart-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .chart-title { font-size: .82rem; font-weight: 700; }
+    .chart-legend { display: flex; gap: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: .7rem; color: var(--muted); }
+    .legend-line { width: 18px; height: 2px; border-radius: 1px; }
+    .chart-wrap  { position: relative; height: 200px; }
+
+    /* Table card */
+    .tbl-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .tbl-hdr  { padding: 11px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; justify-content: space-between; }
+    .tbl-title { font-size: .82rem; font-weight: 700; }
+    .tbl-sub   { font-size: .7rem; color: var(--muted); }
+    .tbl-scroll { overflow-x: auto; max-height: 480px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { position: sticky; top: 0; z-index: 5; background: #f1f5f9; border-bottom: 2px solid var(--border); padding: 8px 12px; font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); white-space: nowrap; cursor: pointer; user-select: none; }
+    thead th:not(:first-child) { text-align: right; }
+    thead th:hover { background: #e2e8f0; color: var(--text); }
+    th.sort-asc::after  { content: ' ↑'; color: var(--navy); }
+    th.sort-desc::after { content: ' ↓'; color: var(--navy); }
+    th.th-pm { background: #fdf9ee !important; border-bottom: 2px solid var(--gold) !important; }
+    th.th-py { background: #eef2f8 !important; border-bottom: 2px solid var(--navy) !important; }
+    tbody td { padding: 7px 12px; border-bottom: 1px solid #f0f4f8; font-size: .78rem; white-space: nowrap; }
+    tbody td:not(:first-child) { text-align: right; }
+    tbody tr:hover td { background: #f8fafc; }
+    tbody tr:last-child td { border-bottom: none; }
+    td.td-month { font-weight: 500; }
+    td.td-val   { font-weight: 600; color: var(--navy); }
+    td.col-pm   { background: rgba(200,168,75,.05); }
+    td.col-py   { background: rgba(27,58,107,.04); }
+    .up   { color: var(--green); font-weight: 500; }
+    .down { color: var(--red);   font-weight: 500; }
+    .neu  { color: var(--muted); }
+    .no-data { text-align: center; padding: 40px; color: var(--muted); font-style: italic; font-size: .85rem; }
+
+    @media(max-width:900px) { .kpi-row{grid-template-columns:1fr 1fr;} }
+    @media(max-width:560px) { .kpi-row{grid-template-columns:1fr;} .filters{flex-direction:column;} }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ──────────────────────────────────────────────────── -->
+<header class="hdr">
+  <div class="hdr-logo">10F</div>
+  <div>
+    <div class="hdr-title">Base Metric Explorer</div>
+    <div class="hdr-sub">10 Federal · Lodestar Semantic Model · Live</div>
+  </div>
+  <div class="hdr-right">
+    <div class="hdr-meta">
+      <div id="lbl-fetched">—</div>
+      <div id="lbl-rows"></div>
+    </div>
+    <button id="btn-refresh">
+      <span id="refresh-icon">⟳</span> Refresh
+    </button>
+  </div>
+</header>
+
+<!-- ── FILTERS ─────────────────────────────────────────────────── -->
+<div class="filters">
+
+  <div class="fg">
+    <label class="fl" for="filter-metric">Base Metric</label>
+    <select id="filter-metric" class="fs">
+      <optgroup label="Occupancy &amp; Rates">
+        <option value="Unit Occupancy"   data-fmt="pct"      data-dir="up">Unit Occupancy</option>
+        <option value="Total Units"      data-fmt="num"      data-dir="neu">Total Units</option>
+        <option value="Occupied Units"   data-fmt="num"      data-dir="up">Occupied Units</option>
+        <option value="Vacant Units"     data-fmt="num"      data-dir="down">Vacant Units</option>
+      </optgroup>
+      <optgroup label="Rental Activity">
+        <option value="Net Move Ins"          data-fmt="num"  data-dir="up">Net Move Ins</option>
+        <option value="Total Move Ins"        data-fmt="num"  data-dir="up">Total Move Ins</option>
+        <option value="Total Move Outs"       data-fmt="num"  data-dir="down">Total Move Outs</option>
+        <option value="Total Leads"           data-fmt="num"  data-dir="up">Total Leads</option>
+        <option value="Total Lead Conversion" data-fmt="num"  data-dir="up">Total Lead Conversion</option>
+        <option value="Lead Conversion Rate"  data-fmt="pct"  data-dir="up">Lead Conversion Rate</option>
+      </optgroup>
+      <optgroup label="Financial">
+        <option value="Revenue"            data-fmt="currency" data-dir="up">Revenue</option>
+        <option value="NOI"                data-fmt="currency" data-dir="up">NOI</option>
+        <option value="NOI Margin"         data-fmt="pct"      data-dir="up">NOI Margin</option>
+        <option value="Rental Revenue"     data-fmt="currency" data-dir="up">Rental Revenue</option>
+        <option value="Operating Expenses" data-fmt="currency" data-dir="down">Operating Expenses</option>
+        <option value="Loss to Lease"      data-fmt="currency" data-dir="down">Loss to Lease</option>
+      </optgroup>
+    </select>
+  </div>
+
+  <div class="fg">
+    <label class="fl">Date Range</label>
+    <div class="date-row">
+      <select id="filter-from" class="fs" style="min-width:118px;"></select>
+      <span class="date-sep">→</span>
+      <select id="filter-to" class="fs" style="min-width:118px;"></select>
+    </div>
+  </div>
+
+  <div class="fg">
+    <label class="fl" for="filter-owner">Owner</label>
+    <select id="filter-owner" class="fs">
+      <option value="">— All Owners —</option>
+    </select>
+  </div>
+
+  <div class="fg">
+    <label class="fl" for="filter-property">Property</label>
+    <select id="filter-property" class="fs" style="min-width:230px;">
+      <option value="">— All Properties —</option>
+    </select>
+  </div>
+
+  <div class="fg">
+    <label class="fl">Compare To</label>
+    <div class="chk-group">
+      <label class="chk-item"><input type="checkbox" id="chk-pm" checked><span>Prior Month</span></label>
+      <label class="chk-item"><input type="checkbox" id="chk-py" checked><span>Prior Year</span></label>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── MAIN ────────────────────────────────────────────────────── -->
+<div class="content">
+
+  <div id="status-bar" class="status hidden">
+    <div class="status-dot"></div>
+    <span id="status-msg"></span>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-row" id="kpi-row">
+    <div class="kpi c-navy">
+      <div class="kpi-lbl" id="k0-lbl">Unit Occupancy</div>
+      <div class="kpi-val" id="k0-val"><span class="skel skel-val"></span></div>
+      <div class="kpi-sub" id="k0-sub"><span class="skel skel-sub"></span></div>
+    </div>
+    <div class="kpi c-gold">
+      <div class="kpi-lbl">Prior Month</div>
+      <div class="kpi-val" id="k1-val"><span class="skel skel-val"></span></div>
+      <div class="kpi-delta" id="k1-delta"></div>
+    </div>
+    <div class="kpi" id="k2-card">
+      <div class="kpi-lbl">Prior Year</div>
+      <div class="kpi-val" id="k2-val"><span class="skel skel-val"></span></div>
+      <div class="kpi-delta" id="k2-delta"></div>
+    </div>
+    <div class="kpi c-navy">
+      <div class="kpi-lbl" id="k3-lbl">Period Average</div>
+      <div class="kpi-val" id="k3-val"><span class="skel skel-val"></span></div>
+      <div class="kpi-sub" id="k3-sub"><span class="skel skel-sub"></span></div>
+    </div>
+  </div>
+
+  <!-- Trend Chart -->
+  <div class="chart-card">
+    <div class="chart-hdr">
+      <div class="chart-title" id="chart-title">Loading…</div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-line" style="background:var(--navy)"></div>Current</div>
+        <div class="legend-item" id="py-legend" style="display:none">
+          <div class="legend-line" style="background:var(--gold);border-top:2px dashed var(--gold);"></div>Prior Year
+        </div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="trend-chart"></canvas></div>
+  </div>
+
+  <!-- Monthly Table -->
+  <div class="tbl-card">
+    <div class="tbl-hdr">
+      <div class="tbl-title" id="tbl-title">Monthly Detail</div>
+      <div class="tbl-sub" id="tbl-sub"></div>
+    </div>
+    <div class="tbl-scroll">
+      <table>
+        <thead id="tbl-thead"></thead>
+        <tbody id="tbl-tbody"><tr><td colspan="9" class="no-data">Loading data from Lodestar…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CONFIG — matches api/pbi-data named queries + filters
+// ═══════════════════════════════════════════════════════════
+const API = '/api/pbi-data';          // Azure Functions endpoint
+const DEFAULT_FROM = '2025-04';
+const DEFAULT_TO   = '2026-03';
+
+// Metric → { apiField, fmt, dir }
+// apiField matches the column names returned by metric-trend
+const METRICS = {
+  'Unit Occupancy':         { field:'Unit Occupancy',        fmt:'pct',      dir:'up'   },
+  'Total Units':            { field:'Total Units',           fmt:'num',      dir:'neu'  },
+  'Occupied Units':         { field:'Occupied Units',        fmt:'num',      dir:'up'   },
+  'Vacant Units':           { field:'Vacant Units',          fmt:'num',      dir:'down' },
+  'Net Move Ins':           { field:'Net Move Ins',          fmt:'num',      dir:'up'   },
+  'Total Move Ins':         { field:'Total Move Ins',        fmt:'num',      dir:'up'   },
+  'Total Move Outs':        { field:'Total Move Outs',       fmt:'num',      dir:'down' },
+  'Total Leads':            { field:'Total Leads',           fmt:'num',      dir:'up'   },
+  'Total Lead Conversion':  { field:'Total Lead Conversion', fmt:'num',      dir:'up'   },
+  'Lead Conversion Rate':   { field:null,                    fmt:'pct',      dir:'up',
+                              compute: r => r['Total Leads'] ? r['Total Lead Conversion'] / r['Total Leads'] : null },
+  'Revenue':                { field:'Revenue',               fmt:'currency', dir:'up'   },
+  'NOI':                    { field:'NOI',                   fmt:'currency', dir:'up'   },
+  'NOI Margin':             { field:null,                    fmt:'pct',      dir:'up',
+                              compute: r => r['Revenue'] ? r['NOI'] / r['Revenue'] : null },
+  'Rental Revenue':         { field:'Rental Revenue',        fmt:'currency', dir:'up'   },
+  'Operating Expenses':     { field:'Operating Expenses',    fmt:'currency', dir:'down' },
+  'Loss to Lease':          { field:'Loss to Lease',         fmt:'currency', dir:'down' },
+};
+
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+const state = {
+  metric:   'Unit Occupancy',
+  fromYM:   DEFAULT_FROM,
+  toYM:     DEFAULT_TO,
+  owner:    '',
+  property: '',
+  showPM:   true,
+  showPY:   true,
+  // Loaded data
+  rows:     [],        // raw API rows for current range (sorted asc by y/m)
+  allRows:  [],        // 36-month window for PY lookup
+  owners:   [],        // [{ value }]
+  propMap:  {},        // owner → [propertyName, …]
+  fetchedAt: null,
+  sortCol:  -1,
+  sortDir:  'desc',
+};
+
+let chart = null;
+
+// ═══════════════════════════════════════════════════════════
+//  FORMATTERS
+// ═══════════════════════════════════════════════════════════
+function fv(v, fmt) {
+  if (v == null || isNaN(v)) return '—';
+  if (fmt === 'pct')      return (v * 100).toFixed(1) + '%';
+  if (fmt === 'currency') {
+    const abs = Math.abs(v);
+    const str = abs >= 1e6 ? '$' + (abs/1e6).toFixed(2) + 'M'
+              : abs >= 1e3 ? '$' + (abs/1e3).toFixed(0) + 'K'
+              : '$' + abs.toFixed(0);
+    return v < 0 ? '-' + str : str;
+  }
+  return Math.round(v).toLocaleString();
+}
+
+function delta(cur, ref, fmt, dir) {
+  if (cur == null || ref == null || ref === 0) return null;
+  const diff = cur - ref;
+  const pct  = diff / Math.abs(ref);
+  const up   = dir === 'up'   ? diff > 0 : diff < 0;
+  const cls  = dir === 'neu' || diff === 0 ? 'neu' : up ? 'up' : 'down';
+  const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '—';
+  let diffStr;
+  if (fmt === 'pct') {
+    diffStr = (diff * 100 >= 0 ? '+' : '') + (diff * 100).toFixed(2) + ' pp';
+  } else if (fmt === 'currency') {
+    diffStr = (diff >= 0 ? '+' : '-') + fv(Math.abs(diff), 'currency');
+  } else {
+    diffStr = (diff >= 0 ? '+' : '') + Math.round(diff).toLocaleString();
+  }
+  const pctStr = (pct >= 0 ? '+' : '') + (pct * 100).toFixed(1) + '%';
+  return { cls, arrow, diffStr, pctStr };
+}
+
+// Get a metric value from a raw API row
+function getVal(row, metric) {
+  const m = METRICS[metric];
+  if (!m) return null;
+  if (m.compute) return m.compute(row);
+  return row[m.field] ?? null;
+}
+
+// Build YYYY-MM label from row
+function rowLabel(r) {
+  const mn = r['Month Name'] || '';
+  const y  = r['Year'] || '';
+  return mn ? mn.slice(0, 3) + ' ' + y : `${y}-${r['Month']}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  API CALL
+// ═══════════════════════════════════════════════════════════
+async function apiFetch(params) {
+  const url = new URL(API, location.origin);
+  Object.entries(params).forEach(([k, v]) => {
+    if (Array.isArray(v)) v.forEach(x => url.searchParams.append(k, x));
+    else if (v != null && v !== '') url.searchParams.set(k, v);
+  });
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  LOAD FILTER OPTIONS (owners + properties)
+// ═══════════════════════════════════════════════════════════
+async function loadFilterOptions() {
+  try {
+    const data = await apiFetch({ query: 'filter-options' });
+    const rows = data.rows || [];
+
+    // Reset
+    state.owners  = [];
+    state.propMap = {};
+
+    rows.forEach(r => {
+      const type  = r.type  || r['[type]']  || r.Type;
+      const value = r.value || r['[value]'] || r.Value || '';
+      const group = r.group || r['[group]'] || r.Group || '';
+      if (!value) return;
+      if (type === 'owner') {
+        state.owners.push(value);
+      } else if (type === 'property') {
+        if (!state.propMap[group]) state.propMap[group] = [];
+        state.propMap[group].push(value);
+      }
+    });
+
+    // Populate owner dropdown
+    const ownerSel = document.getElementById('filter-owner');
+    ownerSel.innerHTML = '<option value="">— All Owners —</option>';
+    state.owners.sort().forEach(o => {
+      const cnt = (state.propMap[o] || []).length;
+      ownerSel.insertAdjacentHTML('beforeend',
+        `<option value="${esc(o)}">${o}${cnt ? ' (' + cnt + ')' : ''}</option>`);
+    });
+
+    rebuildPropertyDropdown();
+  } catch (e) {
+    console.warn('Could not load filter-options:', e.message);
+    // Fallback: leave dropdowns empty but functional
+  }
+}
+
+function rebuildPropertyDropdown() {
+  const propSel = document.getElementById('filter-property');
+  propSel.innerHTML = '<option value="">— All Properties —</option>';
+  const list = state.owner
+    ? (state.propMap[state.owner] || [])
+    : Object.values(state.propMap).flat();
+  list.sort().forEach(p =>
+    propSel.insertAdjacentHTML('beforeend', `<option value="${esc(p)}">${p}</option>`)
+  );
+  propSel.value = state.property && list.includes(state.property) ? state.property : '';
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+
+// ═══════════════════════════════════════════════════════════
+//  LOAD TREND DATA
+// ═══════════════════════════════════════════════════════════
+async function loadTrendData() {
+  setStatus('info', 'Loading from Lodestar…');
+  setRefreshing(true);
+
+  try {
+    // Build params
+    const params = { query: 'metric-trend', dateFrom: state.fromYM, dateTo: state.toYM };
+    if (state.owner)    params.owner    = state.owner;
+    if (state.property) params.property = state.property;
+
+    // Also fetch 12 months prior for PY comparison (extend dateFrom by 1 year)
+    const [fy, fm] = state.fromYM.split('-').map(Number);
+    const pyFrom   = `${fy - 1}-${String(fm).padStart(2,'0')}`;
+
+    const [mainData, pyData] = await Promise.all([
+      apiFetch(params),
+      apiFetch({ ...params, dateFrom: pyFrom, dateTo: state.fromYM.replace(/(\d+)-/, m => (parseInt(m)-1+'-')) }),
+    ]);
+
+    // Combine and sort ascending
+    const allRaw = [
+      ...(pyData.rows || []),
+      ...(mainData.rows || []),
+    ];
+    allRaw.sort((a, b) => (a.Year - b.Year) || (a.Month - b.Month));
+
+    // Remove duplicates (keep one per Year+Month)
+    const seen  = new Set();
+    state.allRows = allRaw.filter(r => {
+      const k = `${r.Year}-${r.Month}`;
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    });
+
+    // Main range rows only
+    const [ty, tm]   = state.toYM.split('-').map(Number);
+    const fromKey    = fy * 100 + fm;
+    const toKey      = ty * 100 + tm;
+    state.rows = state.allRows.filter(r => {
+      const k = r.Year * 100 + r.Month;
+      return k >= fromKey && k <= toKey;
+    });
+
+    state.fetchedAt = mainData.fetchedAt || new Date().toISOString();
+    document.getElementById('lbl-fetched').textContent =
+      'Updated ' + new Date(state.fetchedAt).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+    document.getElementById('lbl-rows').textContent =
+      `${state.rows.length} months${state.owner ? ' · ' + state.owner : ''}${state.property ? ' · 1 property' : ''}`;
+
+    clearStatus();
+    renderAll();
+
+  } catch(e) {
+    setStatus('error', `Failed to load data: ${e.message}`);
+  } finally {
+    setRefreshing(false);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FIND PRIOR-PERIOD ROW
+// ═══════════════════════════════════════════════════════════
+function findRow(y, m) {
+  return state.allRows.find(r => r.Year === y && r.Month === m) || null;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER KPI CARDS
+// ═══════════════════════════════════════════════════════════
+function renderKPIs() {
+  const { metric, rows } = state;
+  const mf = METRICS[metric];
+  if (!mf || !rows.length) { skeletonKPIs(); return; }
+
+  const latest = rows[rows.length - 1];
+  const cur    = getVal(latest, metric);
+  const pmRow  = findRow(latest.Year - (latest.Month === 1 ? 1 : 0), latest.Month === 1 ? 12 : latest.Month - 1);
+  const pyRow  = findRow(latest.Year - 1, latest.Month);
+  const pmVal  = pmRow ? getVal(pmRow, metric) : null;
+  const pyVal  = pyRow ? getVal(pyRow, metric) : null;
+
+  // KPI 0 — current
+  document.getElementById('k0-lbl').textContent = metric;
+  document.getElementById('k0-val').textContent = fv(cur, mf.fmt);
+  document.getElementById('k0-sub').textContent = rowLabel(latest);
+
+  // KPI 1 — PM
+  document.getElementById('k1-val').textContent = fv(pmVal, mf.fmt);
+  renderDelta('k1-delta', delta(cur, pmVal, mf.fmt, mf.dir), pmRow ? rowLabel(pmRow) : '');
+
+  // KPI 2 — PY
+  document.getElementById('k2-val').textContent = fv(pyVal, mf.fmt);
+  renderDelta('k2-delta', delta(cur, pyVal, mf.fmt, mf.dir), pyRow ? rowLabel(pyRow) : '');
+  const k2 = document.getElementById('k2-card');
+  const pyD = delta(cur, pyVal, mf.fmt, mf.dir);
+  k2.className = 'kpi ' + (!pyD || pyD.cls === 'neu' ? '' : pyD.cls === 'up' ? 'c-green' : 'c-red');
+
+  // KPI 3 — range agg
+  const vals  = rows.map(r => getVal(r, metric)).filter(v => v != null);
+  const isAvg = mf.fmt === 'pct';
+  const agg   = isAvg
+    ? vals.reduce((a,b) => a+b, 0) / vals.length
+    : vals.reduce((a,b) => a+b, 0);
+  document.getElementById('k3-lbl').textContent = isAvg ? 'Period Average' : 'Period Total';
+  document.getElementById('k3-val').textContent = fv(agg, mf.fmt);
+  document.getElementById('k3-sub').textContent =
+    rows.length ? rowLabel(rows[0]) + ' – ' + rowLabel(rows[rows.length-1]) : '';
+}
+
+function renderDelta(id, d, refLabel) {
+  const el = document.getElementById(id);
+  if (!d) { el.innerHTML = refLabel ? `<span class="tag-pct">${refLabel}</span>` : ''; return; }
+  el.innerHTML =
+    `<span class="tag tag-${d.cls}">${d.arrow} ${d.diffStr}</span>` +
+    `<span class="tag-pct">${d.pctStr}${refLabel ? ' vs ' + refLabel : ''}</span>`;
+}
+
+function skeletonKPIs() {
+  ['k0-val','k1-val','k2-val','k3-val'].forEach(id => {
+    document.getElementById(id).innerHTML = '<span class="skel skel-val"></span>';
+  });
+  ['k0-sub','k1-delta','k2-delta','k3-sub'].forEach(id => {
+    document.getElementById(id).innerHTML = '<span class="skel skel-sub"></span>';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER CHART
+// ═══════════════════════════════════════════════════════════
+function renderChart() {
+  const { metric, rows, showPY } = state;
+  const mf = METRICS[metric];
+  if (!mf) return;
+
+  const labels = rows.map(r => rowLabel(r));
+  const values = rows.map(r => getVal(r, metric));
+  const pyVals = rows.map(r => {
+    const pr = findRow(r.Year - 1, r.Month);
+    return pr ? getVal(pr, metric) : null;
+  });
+  const hasPY = showPY && pyVals.some(v => v != null);
+
+  document.getElementById('chart-title').textContent = `${metric} — Monthly Trend`;
+  document.getElementById('py-legend').style.display = hasPY ? '' : 'none';
+
+  const tickFmt = v => {
+    if (v == null) return '';
+    if (mf.fmt === 'pct')      return (v*100).toFixed(0) + '%';
+    if (mf.fmt === 'currency') return v >= 1e6 ? '$'+(v/1e6).toFixed(1)+'M' : '$'+(v/1e3).toFixed(0)+'K';
+    return v >= 1e3 ? (v/1e3).toFixed(0)+'K' : String(Math.round(v));
+  };
+
+  const datasets = [{
+    label: metric,
+    data: values,
+    borderColor: '#1b3a6b',
+    backgroundColor: 'rgba(27,58,107,0.07)',
+    fill: true, tension: 0.3, pointRadius: 3, pointHoverRadius: 6, borderWidth: 2,
+  }];
+  if (hasPY) datasets.push({
+    label: `${metric} PY`,
+    data: pyVals,
+    borderColor: '#c8a84b',
+    backgroundColor: 'transparent',
+    fill: false, tension: 0.3, pointRadius: 2, pointHoverRadius: 5,
+    borderWidth: 2, borderDash: [4, 4],
+  });
+
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById('trend-chart'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a2535', titleColor: '#f1f5f9', bodyColor: '#cbd5e1',
+          borderColor: '#334155', borderWidth: 1, padding: 10, cornerRadius: 6,
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fv(ctx.parsed.y, mf.fmt)}` }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(0,0,0,.04)' }, ticks: { color: '#5a6a7e', font: { size: 10 }, maxTicksLimit: 13 } },
+        y: { grid: { color: 'rgba(0,0,0,.04)' }, ticks: { color: '#5a6a7e', font: { size: 10 }, callback: tickFmt } }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER TABLE
+// ═══════════════════════════════════════════════════════════
+function renderTable() {
+  const { metric, rows, showPM, showPY, sortCol, sortDir } = state;
+  const mf = METRICS[metric];
+  if (!mf) return;
+
+  document.getElementById('tbl-title').textContent = `Monthly Detail — ${metric}`;
+  document.getElementById('tbl-sub').textContent   =
+    rows.length ? `${rowLabel(rows[0])} – ${rowLabel(rows[rows.length-1])} · ${rows.length} months` : '';
+
+  // Build header
+  let th = `<tr>
+    <th data-col="0">Month</th>
+    <th data-col="1">${metric}</th>`;
+  if (showPM) th += `<th class="th-pm" data-col="2">Prior Month</th><th class="th-pm" data-col="3">MoM Δ</th><th class="th-pm" data-col="4">MoM %</th>`;
+  if (showPY) th += `<th class="th-py" data-col="5">Prior Year</th><th class="th-py" data-col="6">YoY Δ</th><th class="th-py" data-col="7">YoY %</th>`;
+  th += '</tr>';
+  document.getElementById('tbl-thead').innerHTML = th;
+
+  // Sort listeners
+  document.querySelectorAll('#tbl-thead th').forEach(el => {
+    const col = +el.dataset.col;
+    if (col === sortCol) el.classList.add(`sort-${sortDir}`);
+    el.addEventListener('click', () => {
+      state.sortDir = (state.sortCol === col && state.sortDir === 'desc') ? 'asc' : 'desc';
+      state.sortCol = col;
+      renderTable();
+    });
+  });
+
+  if (!rows.length) {
+    document.getElementById('tbl-tbody').innerHTML =
+      '<tr><td colspan="9" class="no-data">No data for selected range</td></tr>';
+    return;
+  }
+
+  // Build display rows (newest first by default, or sorted)
+  const display = [...rows].reverse();
+
+  document.getElementById('tbl-tbody').innerHTML = display.map(row => {
+    const cur   = getVal(row, metric);
+    const pmRow = findRow(row.Year - (row.Month === 1 ? 1 : 0), row.Month === 1 ? 12 : row.Month - 1);
+    const pyRow = findRow(row.Year - 1, row.Month);
+    const pmVal = pmRow ? getVal(pmRow, metric) : null;
+    const pyVal = pyRow ? getVal(pyRow, metric) : null;
+    const pmD   = delta(cur, pmVal, mf.fmt, mf.dir);
+    const pyD   = delta(cur, pyVal, mf.fmt, mf.dir);
+
+    let tds = `<td class="td-month">${rowLabel(row)}</td><td class="td-val">${fv(cur, mf.fmt)}</td>`;
+    if (showPM) {
+      const c = pmD?.cls || 'neu';
+      tds += `<td class="col-pm">${fv(pmVal, mf.fmt)}</td>
+              <td class="col-pm ${c}">${pmD ? pmD.arrow + ' ' + pmD.diffStr : '—'}</td>
+              <td class="col-pm ${c}">${pmD ? pmD.pctStr : '—'}</td>`;
+    }
+    if (showPY) {
+      const c = pyD?.cls || 'neu';
+      tds += `<td class="col-py">${fv(pyVal, mf.fmt)}</td>
+              <td class="col-py ${c}">${pyD ? pyD.arrow + ' ' + pyD.diffStr : '—'}</td>
+              <td class="col-py ${c}">${pyD ? pyD.pctStr : '—'}</td>`;
+    }
+    return `<tr>${tds}</tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER ALL
+// ═══════════════════════════════════════════════════════════
+function renderAll() { renderKPIs(); renderChart(); renderTable(); }
+
+// ═══════════════════════════════════════════════════════════
+//  STATUS + REFRESH UI
+// ═══════════════════════════════════════════════════════════
+function setStatus(type, msg) {
+  const bar = document.getElementById('status-bar');
+  bar.className = `status ${type}`;
+  document.getElementById('status-msg').textContent = msg;
+}
+function clearStatus() {
+  document.getElementById('status-bar').className = 'status hidden';
+}
+function setRefreshing(on) {
+  const icon = document.getElementById('refresh-icon');
+  const btn  = document.getElementById('btn-refresh');
+  icon.className = on ? 'spin' : '';
+  icon.textContent = '⟳';
+  btn.disabled = on;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DATE FILTER BUILDER (populate <select> options)
+// ═══════════════════════════════════════════════════════════
+function buildDateSelects() {
+  // Generate last 36 months backwards from Mar 2026
+  const months = [];
+  const end = new Date(2026, 2, 1); // March 2026
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(end);
+    d.setMonth(d.getMonth() - i);
+    const y = d.getFullYear(), m = d.getMonth() + 1;
+    months.push({
+      val:   `${y}-${String(m).padStart(2,'0')}`,
+      label: d.toLocaleString('en-US', { month:'short', year:'numeric' }),
+    });
+  }
+
+  const from = document.getElementById('filter-from');
+  const to   = document.getElementById('filter-to');
+  months.forEach(mo => {
+    from.insertAdjacentHTML('beforeend', `<option value="${mo.val}">${mo.label}</option>`);
+    to.insertAdjacentHTML('beforeend',   `<option value="${mo.val}">${mo.label}</option>`);
+  });
+  from.value = DEFAULT_FROM;
+  to.value   = DEFAULT_TO;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EVENT WIRING
+// ═══════════════════════════════════════════════════════════
+function initEvents() {
+  document.getElementById('filter-metric').addEventListener('change', e => {
+    state.metric  = e.target.value;
+    state.sortCol = -1;
+    renderAll(); // metric switch re-renders from cached data — no API call
+  });
+
+  document.getElementById('filter-from').addEventListener('change', e => {
+    state.fromYM = e.target.value;
+    loadTrendData();
+  });
+
+  document.getElementById('filter-to').addEventListener('change', e => {
+    state.toYM = e.target.value;
+    loadTrendData();
+  });
+
+  document.getElementById('filter-owner').addEventListener('change', e => {
+    state.owner    = e.target.value;
+    state.property = '';
+    rebuildPropertyDropdown();
+    loadTrendData();
+  });
+
+  document.getElementById('filter-property').addEventListener('change', e => {
+    state.property = e.target.value;
+    loadTrendData();
+  });
+
+  document.getElementById('chk-pm').addEventListener('change', e => {
+    state.showPM = e.target.checked;
+    renderTable();
+  });
+
+  document.getElementById('chk-py').addEventListener('change', e => {
+    state.showPY = e.target.checked;
+    document.getElementById('py-legend').style.display = e.target.checked ? '' : 'none';
+    renderChart();
+    renderTable();
+  });
+
+  document.getElementById('btn-refresh').addEventListener('click', () => loadTrendData());
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+(async function init() {
+  buildDateSelects();
+  initEvents();
+  await Promise.all([
+    loadFilterOptions(),
+    loadTrendData(),
+  ]);
+})();
+</script>
+</body>
+</html>
