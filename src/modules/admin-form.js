@@ -96,6 +96,8 @@ export function buildEntry(data) {
     tags,
     author:      (data.author || '').trim(),
     dateAdded:   data.dateAdded || todayIso(),
+    createdUtc:  data.createdUtc || null,
+    uploadedUtc: data.uploadedUtc || null,
     filename:    data.file.name,
     thumbnail:   '',
     openInNewTab: data.openInNewTab === true

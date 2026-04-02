@@ -80,10 +80,10 @@ async function handleNewFormatUpload(context, body, host, sasToken) {
   const { htmlContent, htmlFilename, configContent, configFilename, entry } = body;
 
   // ── Feature 1: Both files required ──────────────────────────────────────
-  if (!htmlContent || !configContent || !entry) {
+  if (!htmlContent || !entry) {
     context.res = {
       status: 400,
-      body: { error: 'Dashboard package is incomplete or invalid.', detail: 'htmlContent, configContent, and entry are all required.' },
+      body: { error: 'Dashboard package is incomplete or invalid.', detail: 'htmlContent and entry are required.' },
     };
     return;
   }
@@ -95,29 +95,32 @@ async function handleNewFormatUpload(context, body, host, sasToken) {
   }
 
   // ── Parse config JSON ────────────────────────────────────────────────────
-  let config;
-  try {
-    config = JSON.parse(configContent);
-  } catch (parseErr) {
-    context.res = {
-      status: 400,
-      body: { error: 'Dashboard package is incomplete or invalid.', detail: `Config JSON is not valid JSON: ${parseErr.message}` },
-    };
-    return;
-  }
+  const hasConfig = Boolean(configContent && String(configContent).trim());
+  let config = null;
+  if (hasConfig) {
+    try {
+      config = JSON.parse(configContent);
+    } catch (parseErr) {
+      context.res = {
+        status: 400,
+        body: { error: 'Dashboard package is incomplete or invalid.', detail: `Config JSON is not valid JSON: ${parseErr.message}` },
+      };
+      return;
+    }
 
   // ── Feature 2: Config validation ────────────────────────────────────────
-  const configErrors = validateNewConfigSchema(config);
-  if (configErrors.length) {
-    context.res = {
-      status: 400,
-      body: { error: 'Dashboard package is incomplete or invalid.', detail: configErrors.join(' | ') },
-    };
-    return;
+    const configErrors = validateNewConfigSchema(config);
+    if (configErrors.length) {
+      context.res = {
+        status: 400,
+        body: { error: 'Dashboard package is incomplete or invalid.', detail: configErrors.join(' | ') },
+      };
+      return;
+    }
   }
 
   // ── Feature 3: HTML validation ───────────────────────────────────────────
-  const htmlErrors = validateHtmlHooks(htmlContent);
+  const htmlErrors = hasConfig ? validateHtmlHooks(htmlContent) : [];
   if (htmlErrors.length) {
     context.res = {
       status: 400,
@@ -127,7 +130,7 @@ async function handleNewFormatUpload(context, body, host, sasToken) {
   }
 
   // ── Feature 3: Credential scan ───────────────────────────────────────────
-  const credErrors = scanForCredentials(htmlContent, configContent);
+  const credErrors = scanForCredentials(htmlContent, configContent || '');
   if (credErrors.length) {
     context.res = {
       status: 400,
@@ -136,8 +139,8 @@ async function handleNewFormatUpload(context, body, host, sasToken) {
     return;
   }
 
-  const dashboardId = config.dashboardId;
-  if (entry.id && entry.id !== dashboardId) {
+  const dashboardId = config?.dashboardId || entry.dashboardId || entry.id || slugifyFilename(htmlFilename || entry.title || 'dashboard');
+  if (config?.dashboardId && entry.id && entry.id !== dashboardId) {
     context.res = {
       status: 400,
       body: { error: 'Dashboard package is incomplete or invalid.', detail: `Cross-file identity mismatch: entry.id "${entry.id}" must match dashboardId "${dashboardId}".` },
@@ -151,36 +154,49 @@ async function handleNewFormatUpload(context, body, host, sasToken) {
   const canonicalBlobUrl = `${blobBase}/${canonicalFilename}`;
 
   try {
-    const htmlBuffer   = Buffer.from(htmlContent,   'utf-8');
-    const configBuffer = Buffer.from(JSON.stringify(config, null, 2), 'utf-8');
+    const htmlBuffer = Buffer.from(htmlContent, 'utf-8');
 
     // ── Feature 4: Store artifacts under /dashboards/{dashboardId}/ ─────────
-    await Promise.all([
-      blobPut(host, `/${CONTAINER}/${dashboardId}/dashboard.html?${sasToken}`,        htmlBuffer,   'text/html; charset=utf-8'),
-      blobPut(host, `/${CONTAINER}/${dashboardId}/dashboard.config.json?${sasToken}`, configBuffer, 'application/json'),
-    ]);
+    let index = [];
+    const idxRes = await blobGet(host, `/${CONTAINER}/${INDEX_BLOB}?${sasToken}`);
+    if (idxRes.statusCode === 200) {
+      try { index = JSON.parse(idxRes.body); } catch { index = []; }
+    }
+    const priorEntry = index.find(d => d.dashboardId === dashboardId) || null;
+    const createdUtc = config?.createdUtc || priorEntry?.createdUtc || entry.createdUtc || (entry.dateAdded ? new Date(entry.dateAdded).toISOString() : now);
+    const lastModifiedUtc = config?.lastModifiedUtc || now;
+
+    const writes = [
+      blobPut(host, `/${CONTAINER}/${dashboardId}/dashboard.html?${sasToken}`, htmlBuffer, 'text/html; charset=utf-8'),
+    ];
+    if (config) {
+      const configBuffer = Buffer.from(JSON.stringify(config, null, 2), 'utf-8');
+      writes.push(blobPut(host, `/${CONTAINER}/${dashboardId}/dashboard.config.json?${sasToken}`, configBuffer, 'application/json'));
+    }
+    await Promise.all(writes);
 
     // ── Feature 5: Initial metadata (Feature 10 will update on refresh) ─────
     const initMeta = {
       dashboardId,
-      slug:                  config.slug || dashboardId,
-      title:                 config.title,
-      category:              config.category               || entry.category || '',
-      owner:                 config.owner || { name: entry.author || '', email: '' },
-      workspaceId:           config.dataSource.workspaceId,
-      datasetId:             config.dataSource.datasetId,
-      datasetName:           config.dataSource.datasetName || '',
-      createdUtc:            config.createdUtc             || now,
-      lastModifiedUtc:       config.lastModifiedUtc        || now,
-      lastRefreshUtc:        null,
-      lastRefreshStatus:     'never',
-      lastRefreshDurationMs: null,
+      slug:                  config?.slug || entry.slug || dashboardId,
+      title:                 config?.title || entry.title || dashboardId,
+      category:              config?.category || entry.category || '',
+      owner:                 config?.owner || { name: entry.author || '', email: '' },
+      workspaceId:           config?.dataSource?.workspaceId || null,
+      datasetId:             config?.dataSource?.datasetId || null,
+      datasetName:           config?.dataSource?.datasetName || '',
+      createdUtc,
+      lastModifiedUtc,
+      lastRefreshUtc:        priorEntry?.lastRefreshUtc || null,
+      lastRefreshStatus:     config ? (priorEntry?.lastRefreshStatus || 'never') : 'never',
+      lastRefreshDurationMs: priorEntry?.lastRefreshDurationMs || null,
       uploadedUtc:           now,
       schemaVersion:         '1.0',
-      configVersion:         config.version,
-      queryCount:            config.queries.length,
-      refreshMode:           config.refresh?.mode || 'hub-managed',
-      previewEnabled:        Boolean(config.preview?.enabled)
+      configVersion:         config?.version || null,
+      queryCount:            config?.queries?.length || 0,
+      refreshMode:           config?.refresh?.mode || 'none',
+      previewEnabled:        Boolean(config?.preview?.enabled),
+      packageType:           config ? 'hub-managed' : 'html-only'
     };
     await blobPut(
       host,
@@ -205,19 +221,22 @@ async function handleNewFormatUpload(context, body, host, sasToken) {
       ...entry,
       id,
       dashboardId,
-      slug: config.slug || dashboardId,
-      owner: config.owner || null,
+      slug: config?.slug || entry.slug || dashboardId,
+      owner: config?.owner || null,
       blobUrl: canonicalBlobUrl,
       legacyBlobUrl,
       filename: canonicalFilename,
-      workspaceId: config.dataSource.workspaceId,
-      datasetId: config.dataSource.datasetId,
-      datasetName: config.dataSource.datasetName || '',
-      queryCount: config.queries.length,
-      lastModifiedUtc: config.lastModifiedUtc || now,
-      lastRefreshUtc: null,
-      lastRefreshStatus: 'never',
-      hubCompatible: true
+      workspaceId: config?.dataSource?.workspaceId || null,
+      datasetId: config?.dataSource?.datasetId || null,
+      datasetName: config?.dataSource?.datasetName || '',
+      queryCount: config?.queries?.length || 0,
+      createdUtc,
+      uploadedUtc: now,
+      lastModifiedUtc,
+      lastRefreshUtc: priorEntry?.lastRefreshUtc || null,
+      lastRefreshStatus: config ? (priorEntry?.lastRefreshStatus || 'never') : 'never',
+      hubCompatible: Boolean(config),
+      packageType: config ? 'hub-managed' : 'html-only'
     };
     registry = registry.filter(d => d.id !== id);
     registry.push(fullEntry);
@@ -225,37 +244,33 @@ async function handleNewFormatUpload(context, body, host, sasToken) {
       Buffer.from(JSON.stringify(registry, null, 2) + '\n', 'utf-8'), 'application/json');
 
     // ── Update index.json (Feature 4) ───────────────────────────────────────
-    let index = [];
-    const idxRes = await blobGet(host, `/${CONTAINER}/${INDEX_BLOB}?${sasToken}`);
-    if (idxRes.statusCode === 200) {
-      try { index = JSON.parse(idxRes.body); } catch { index = []; }
-    }
     const indexEntry = {
       dashboardId,
-      title:          config.title           || entry.title       || '',
-      description:    config.description     || entry.description || '',
-      category:       config.category        || entry.category    || '',
+      title:          config?.title           || entry.title       || '',
+      description:    config?.description     || entry.description || '',
+      category:       config?.category        || entry.category    || '',
       author:         entry.author           || '',
       tags:           entry.tags             || [],
-      owner:          config.owner || null,
-      slug:           config.slug || dashboardId,
+      owner:          config?.owner || null,
+      slug:           config?.slug || entry.slug || dashboardId,
       filename:       canonicalFilename,
       blobUrl:        canonicalBlobUrl,
       legacyBlobUrl,
-      createdUtc:     config.createdUtc      || now,
-      lastModifiedUtc: config.lastModifiedUtc || now,
+      createdUtc,
+      lastModifiedUtc,
       uploadedUtc:    now,
-      lastRefreshUtc: null,
-      lastRefreshStatus: 'never',
+      lastRefreshUtc: priorEntry?.lastRefreshUtc || null,
+      lastRefreshStatus: config ? (priorEntry?.lastRefreshStatus || 'never') : 'never',
       schemaVersion:  '1.0',
-      configVersion:  config.version,
-      workspaceId:    config.dataSource.workspaceId,
-      datasetId:      config.dataSource.datasetId,
-      datasetName:    config.dataSource.datasetName || '',
-      queryCount:     config.queries.length,
-      refreshMode:    config.refresh?.mode || 'hub-managed',
-      previewEnabled: Boolean(config.preview?.enabled),
-      hubCompatible:  true
+      configVersion:  config?.version || null,
+      workspaceId:    config?.dataSource?.workspaceId || null,
+      datasetId:      config?.dataSource?.datasetId || null,
+      datasetName:    config?.dataSource?.datasetName || '',
+      queryCount:     config?.queries?.length || 0,
+      refreshMode:    config?.refresh?.mode || 'none',
+      previewEnabled: Boolean(config?.preview?.enabled),
+      hubCompatible:  Boolean(config),
+      packageType:    config ? 'hub-managed' : 'html-only'
     };
     // Feature 16: upsert — replace if dashboardId already exists
     index = index.filter(d => d.dashboardId !== dashboardId);
@@ -271,7 +286,8 @@ async function handleNewFormatUpload(context, body, host, sasToken) {
         blobUrl: canonicalBlobUrl,
         legacyBlobUrl,
         schemaVersion: '1.0',
-        queryCount: config.queries.length
+        queryCount: config?.queries?.length || 0,
+        packageType: config ? 'hub-managed' : 'html-only'
       },
     };
 
@@ -339,6 +355,11 @@ async function handleLegacyUpload(context, body, host, sasToken) {
 
   try {
     const htmlBuffer = Buffer.from(content, 'utf-8');
+    let index = [];
+    const idxRes = await blobGet(host, `/${CONTAINER}/${INDEX_BLOB}?${sasToken}`);
+    if (idxRes.statusCode === 200) { try { index = JSON.parse(idxRes.body); } catch { index = []; } }
+    const priorEntry = index.find(d => d.dashboardId === id) || null;
+    const createdUtc = priorEntry?.createdUtc || (entry.dateAdded ? new Date(entry.dateAdded).toISOString() : now);
 
     const flatUpload = await blobPut(host, `/${CONTAINER}/${filename}?${sasToken}`, htmlBuffer, 'text/html; charset=utf-8');
     if (flatUpload.statusCode >= 300) throw new Error(`HTML blob upload failed: ${flatUpload.statusCode}`);
@@ -351,8 +372,15 @@ async function handleLegacyUpload(context, body, host, sasToken) {
     }
 
     const initMeta = {
-      lastRefreshUtc: null, lastRefreshStatus: null, lastRefreshDurationMs: null,
-      hubCompatible: Boolean(hubConfig), uploadedUtc: now,
+      dashboardId: id,
+      createdUtc,
+      uploadedUtc: now,
+      lastModifiedUtc: now,
+      lastRefreshUtc: priorEntry?.lastRefreshUtc || null,
+      lastRefreshStatus: hubConfig ? (priorEntry?.lastRefreshStatus || 'never') : 'never',
+      lastRefreshDurationMs: priorEntry?.lastRefreshDurationMs || null,
+      hubCompatible: Boolean(hubConfig),
+      packageType: hubConfig ? 'hub-managed' : 'html-only',
     };
     await blobPut(host, `/${CONTAINER}/${id}/metadata.json?${sasToken}`,
       Buffer.from(JSON.stringify(initMeta, null, 2), 'utf-8'), 'application/json');
@@ -362,21 +390,30 @@ async function handleLegacyUpload(context, body, host, sasToken) {
     const regRes = await blobGet(host, `/${CONTAINER}/${REGISTRY_BLOB}?${sasToken}`);
     if (regRes.statusCode === 200) { try { registry = JSON.parse(regRes.body); } catch { registry = []; } }
     const blobUrl   = `${blobBase}/${filename}`;
-    const fullEntry = { ...entry, blobUrl };
+    const fullEntry = {
+      ...entry,
+      blobUrl,
+      createdUtc,
+      uploadedUtc: now,
+      lastModifiedUtc: now,
+      lastRefreshUtc: priorEntry?.lastRefreshUtc || null,
+      lastRefreshStatus: hubConfig ? (priorEntry?.lastRefreshStatus || 'never') : 'never',
+      hubCompatible: Boolean(hubConfig),
+      packageType: hubConfig ? 'hub-managed' : 'html-only',
+    };
     registry = registry.filter(d => d.id !== fullEntry.id);
     registry.push(fullEntry);
     await blobPut(host, `/${CONTAINER}/${REGISTRY_BLOB}?${sasToken}`,
       Buffer.from(JSON.stringify(registry, null, 2) + '\n', 'utf-8'), 'application/json');
 
     // Update index.json
-    let index = [];
-    const idxRes = await blobGet(host, `/${CONTAINER}/${INDEX_BLOB}?${sasToken}`);
-    if (idxRes.statusCode === 200) { try { index = JSON.parse(idxRes.body); } catch { index = []; } }
     const indexEntry = {
       dashboardId: id, title: entry.title || '', description: entry.description || '',
       category: entry.category || '', author: entry.author || '', tags: entry.tags || [],
-      filename, blobUrl, createdUtc: entry.dateAdded ? new Date(entry.dateAdded).toISOString() : now,
-      uploadedUtc: now, lastRefreshUtc: null, hubCompatible: Boolean(hubConfig),
+      filename, blobUrl, createdUtc,
+      uploadedUtc: now, lastModifiedUtc: now, lastRefreshUtc: priorEntry?.lastRefreshUtc || null,
+      lastRefreshStatus: hubConfig ? (priorEntry?.lastRefreshStatus || 'never') : 'never',
+      hubCompatible: Boolean(hubConfig), packageType: hubConfig ? 'hub-managed' : 'html-only',
       datasetId: hubConfig?.datasetId || entry.dataConnection?.datasetId || null,
       workspaceId: hubConfig?.workspaceId || entry.dataConnection?.workspaceId || null,
       queryCount: hubConfig?.queries?.length ?? entry.dataConnection?.queries?.length ?? 0,
@@ -483,6 +520,16 @@ function scanForCredentials(htmlContent, configContent) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
+function slugifyFilename(value) {
+  return String(value || 'dashboard')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 60) || 'dashboard';
+}
+
 function blobPut(host, path, buffer, contentType) {
   return new Promise((resolve, reject) => {
     const req = https.request({
@@ -519,3 +566,4 @@ function blobGet(host, path) {
     req.end();
   });
 }
+

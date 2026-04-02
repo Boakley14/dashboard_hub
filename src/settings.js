@@ -286,17 +286,14 @@ $('publish-form').addEventListener('submit', async e => {
   e.preventDefault();
   hideAlert();
 
-  // Both files are required for new-schema uploads
-  if (!selectedConfigFile) {
-    showAlert('error', `<strong>Please fix the following:</strong><ul><li>Config JSON file (dashboard.config.json) is required</li></ul>`);
-    return;
-  }
-
   const data = {
     file: selectedFile, title: inputTitle.value, id: inputId.value,
     description: inputDescription.value, category: inputCategory.value,
     author: inputAuthor.value, tags: inputTags.value,
-    dateAdded: inputDate.value || todayIso(), openInNewTab: inputNewtab.checked
+    dateAdded: inputDate.value || todayIso(),
+    createdUtc: inputDate.value ? new Date(`${inputDate.value}T00:00:00Z`).toISOString() : new Date().toISOString(),
+    uploadedUtc: new Date().toISOString(),
+    openInNewTab: inputNewtab.checked
   };
 
   const errors = validateForm(data);
@@ -310,10 +307,8 @@ $('publish-form').addEventListener('submit', async e => {
   showProgress();
 
   try {
-    const [htmlContent, configContent] = await Promise.all([
-      readFileAsText(selectedFile),
-      readFileAsText(selectedConfigFile),
-    ]);
+    const htmlContent = await readFileAsText(selectedFile);
+    const configContent = selectedConfigFile ? await readFileAsText(selectedConfigFile) : null;
     const entry = buildEntry(data);
 
     const res = await fetch('/api/upload', {
@@ -322,7 +317,7 @@ $('publish-form').addEventListener('submit', async e => {
         htmlContent,
         htmlFilename:   selectedFile.name,
         configContent,
-        configFilename: selectedConfigFile.name,
+        configFilename: selectedConfigFile?.name || null,
         entry,
       })
     });
@@ -366,6 +361,12 @@ function showManageAlert(type, html) {
   manageAlert.hidden = false;
 }
 
+function formatStamp(value) {
+  if (!value) return '—';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+}
+
 async function loadManageList() {
   try {
     const registry = await loadRegistry();
@@ -380,6 +381,7 @@ async function loadManageList() {
         <div class="manage-row-info">
           <div class="manage-row-title">${d.title}</div>
           <div class="manage-row-meta">${d.category || ''} &mdash; ${d.filename}</div>
+          <div class="manage-row-meta">Created ${formatStamp(d.createdUtc || d.dateAdded)} &mdash; Uploaded ${formatStamp(d.uploadedUtc || d.lastModifiedUtc)}</div>
         </div>
         <div class="manage-row-actions">
           <span class="ds-status-badge ${status.cls}" title="Data connection: ${status.label}">${status.dot} ${status.label}</span>
@@ -428,7 +430,7 @@ function resetForm() {
   fileDropHint.textContent  = 'Accepts .html files';
   if (configDropZone)  configDropZone.classList.remove('has-file', 'drag-over');
   if (configDropLabel) configDropLabel.textContent = 'Click to select or drag & drop';
-  if (configDropHint)  configDropHint.textContent  = 'Accepts .json files';
+  if (configDropHint)  configDropHint.textContent  = 'Optional: add dashboard.config.json for Hub-managed refresh';
   publishProgress.hidden    = true;
 }
 

@@ -72,6 +72,7 @@ module.exports = async function (context, req) {
       queryCount:    e.queryCount    || 0,
       hubCompatible: e.hubCompatible || false,
       createdUtc:    e.createdUtc    || null,
+      uploadedUtc:   e.uploadedUtc   || null,
       lastModifiedUtc: e.lastModifiedUtc || null,
       lastRefreshUtc: e.lastRefreshUtc || null,
       lastRefreshStatus: e.lastRefreshStatus || 'never',
@@ -79,6 +80,7 @@ module.exports = async function (context, req) {
       configVersion: e.configVersion || null,
       refreshMode: e.refreshMode || null,
       previewEnabled: Boolean(e.previewEnabled),
+      packageType: e.packageType || (e.queryCount ? 'hub-managed' : 'html-only'),
     }));
 
     const merged = [...legacyOnly, ...normIndex];

@@ -17,11 +17,13 @@ let _metadata   = null;
 
 export function initInfoPanel(entry) {
   _entry = entry;
+  _config = null;
+  _metadata = null;
 
   // Basic details
   _setText('ip-title',    entry.title       || '—');
   _setText('ip-author',   entry.author      || '—');
-  _setText('ip-date',     entry.dateAdded   || '—');
+  _setText('ip-date',     _formatDateSummary(entry));
   _setText('ip-category', entry.category    || '—');
   _setText('ip-tags',     (entry.tags || []).join(', ') || '—');
 
@@ -301,6 +303,18 @@ function _statusBadge(status) {
   return `<span class="ip-badge ${cls}">${label}</span>`;
 }
 
+function _formatDateSummary(entry) {
+  const created = entry.createdUtc || entry.dateAdded || null;
+  const uploaded = entry.uploadedUtc || entry.lastModifiedUtc || null;
+  return `Created: ${_formatDate(created)} | Uploaded: ${_formatDate(uploaded)}`;
+}
+
+function _formatDate(value) {
+  if (!value) return '—';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString();
+}
+
 function _setText(id, text) {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
@@ -310,3 +324,4 @@ function _show(id, visible) {
   const el = document.getElementById(id);
   if (el) el.hidden = !visible;
 }
+
