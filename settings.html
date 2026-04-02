@@ -167,7 +167,7 @@
             </div>
             <div>
               <div class="card-title">Publish New Dashboard</div>
-              <div class="card-subtitle">Upload a dashboard package (.html + .config.json) and register it in the hub</div>
+              <div class="card-subtitle">Choose whether this upload is a live-connected report or a static HTML snapshot</div>
             </div>
           </div>
         </div>
@@ -184,6 +184,29 @@
           </div>
 
           <form id="publish-form" novalidate>
+
+            <div class="form-group">
+              <label class="form-label">Publish Mode</label>
+              <p class="form-hint">Choose whether this dashboard should be refreshable from a live data source or published as a static HTML snapshot.</p>
+              <div class="publish-mode-grid">
+                <label class="publish-mode-card publish-mode-card--live" for="publish-mode-live">
+                  <input type="radio" id="publish-mode-live" name="publish-mode" value="live" checked>
+                  <div class="publish-mode-card__header">
+                    <span class="publish-mode-card__badge">Live Data</span>
+                    <span class="publish-mode-card__title">Live Data Report</span>
+                  </div>
+                  <p class="publish-mode-card__text">Requires `dashboard.html` plus `dashboard.config.json`. The Hub will show refresh controls and run live queries.</p>
+                </label>
+                <label class="publish-mode-card publish-mode-card--static" for="publish-mode-static">
+                  <input type="radio" id="publish-mode-static" name="publish-mode" value="static">
+                  <div class="publish-mode-card__header">
+                    <span class="publish-mode-card__badge">Static Snapshot</span>
+                    <span class="publish-mode-card__title">Embedded HTML Snapshot</span>
+                  </div>
+                  <p class="publish-mode-card__text">Upload HTML only. The dashboard will clearly show that it is a static snapshot and not connected to live refresh.</p>
+                </label>
+              </div>
+            </div>
 
             <div class="form-row">
 
@@ -207,7 +230,7 @@
 
               <div class="form-group" style="margin-bottom:0">
                 <label>
-                  Config JSON <span class="required">*</span>
+                  Config JSON
                   <span class="hint">— dashboard.config.json</span>
                 </label>
                 <div class="file-drop-zone" id="config-drop-zone">
@@ -220,12 +243,12 @@
                     </svg>
                   </div>
                   <div class="file-drop-label" id="config-drop-label">Click to select or drag &amp; drop</div>
-                  <div class="file-drop-hint" id="config-drop-hint">Accepts .json files</div>
+                  <div class="file-drop-hint" id="config-drop-hint">Required for Live Data mode. Optional for Static Snapshot mode.</div>
                 </div>
               </div>
 
             </div>
-            <p class="form-hint" style="margin-top:6px">Both files are required. The package will be rejected if either is missing or invalid.</p>
+            <p id="publish-mode-note" class="form-hint" style="margin-top:6px">Live Data mode requires both files. Static Snapshot mode allows HTML-only upload.</p>
 
             <hr class="form-divider">
 

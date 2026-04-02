@@ -191,6 +191,9 @@ const inputConfigFile  = $('input-config-file');
 const configDropZone   = $('config-drop-zone');
 const configDropLabel  = $('config-drop-label');
 const configDropHint   = $('config-drop-hint');
+const publishModeLive  = $('publish-mode-live');
+const publishModeStatic = $('publish-mode-static');
+const publishModeNote  = $('publish-mode-note');
 const inputTitle       = $('input-title');
 const inputId          = $('input-id');
 const inputDescription = $('input-description');
@@ -204,6 +207,10 @@ const stepUpload       = $('step-upload');
 
 let selectedFile       = null;
 let selectedConfigFile = null;
+
+function currentPublishMode() {
+  return publishModeStatic?.checked ? 'static' : 'live';
+}
 
 // ── HTML file drop zone ──────────────────────────────────────────────
 inputFile.addEventListener('change', () => {
@@ -255,10 +262,34 @@ function setSelectedConfigFile(file) {
 
 inputTitle.addEventListener('input', () => { inputId.value = slugify(inputTitle.value); });
 function publishModeSummary() {
-  if (selectedConfigFile) {
+  if (currentPublishMode() === 'live') {
     return 'Mode: Live Data report. Uploading a config file marks this dashboard as connected and refreshable.';
   }
   return 'Mode: Static Snapshot. This dashboard will publish as embedded HTML without a live data connection.';
+}
+
+function updatePublishModeUI() {
+  const isLive = currentPublishMode() === 'live';
+
+  if (configDropZone) {
+    configDropZone.classList.toggle('is-disabled', !isLive);
+    configDropZone.classList.toggle('is-optional', isLive);
+  }
+  if (inputConfigFile) inputConfigFile.disabled = !isLive;
+
+  if (configDropLabel && !selectedConfigFile) {
+    configDropLabel.textContent = isLive ? 'Click to select or drag & drop' : 'Config not required for static snapshot';
+  }
+  if (configDropHint && !selectedConfigFile) {
+    configDropHint.textContent = isLive
+      ? 'Required for Live Data mode'
+      : 'Optional only if you switch back to Live Data mode';
+  }
+  if (publishModeNote) {
+    publishModeNote.textContent = isLive
+      ? 'Live Data mode requires both files. The Hub will show refresh controls and current refresh status.'
+      : 'Static Snapshot mode allows HTML-only upload. The dashboard will be labeled as a static snapshot with no live refresh.';
+  }
 }
 
 async function loadCategorySuggestions() {
@@ -292,6 +323,11 @@ $('publish-form').addEventListener('submit', async e => {
   e.preventDefault();
   hideAlert();
 
+  if (currentPublishMode() === 'live' && !selectedConfigFile) {
+    showAlert('error', '<strong>Live Data mode requires a config file.</strong><br>Upload `dashboard.config.json` or switch the publish mode to Static Snapshot.');
+    return;
+  }
+
   const data = {
     file: selectedFile, title: inputTitle.value, id: inputId.value,
     description: inputDescription.value, category: inputCategory.value,
@@ -308,7 +344,7 @@ $('publish-form').addEventListener('submit', async e => {
     return;
   }
 
-  showAlert('success', `<strong>${selectedConfigFile ? 'Live Data upload' : 'Static Snapshot upload'}</strong><br>${publishModeSummary()}`);
+  showAlert('success', `<strong>${currentPublishMode() === 'live' ? 'Live Data upload' : 'Static Snapshot upload'}</strong><br>${publishModeSummary()}`);
 
   btnPublish.disabled = true;
   btnReset.disabled   = true;
@@ -441,6 +477,8 @@ function resetForm() {
   if (configDropLabel) configDropLabel.textContent = 'Click to select or drag & drop';
   if (configDropHint)  configDropHint.textContent  = 'Optional: add dashboard.config.json for Hub-managed refresh';
   publishProgress.hidden    = true;
+  if (publishModeLive) publishModeLive.checked = true;
+  updatePublishModeUI();
 }
 
 $('btn-reset').addEventListener('click', () => { hideAlert(); resetForm(); });
@@ -697,6 +735,13 @@ inputDate.value = todayIso();
 loadCategorySuggestions();
 loadManageList();
 initDataSources();
+updatePublishModeUI();
 
 
+
+
+
+
+if (publishModeLive) publishModeLive.addEventListener('change', updatePublishModeUI);
+if (publishModeStatic) publishModeStatic.addEventListener('change', updatePublishModeUI);
 
