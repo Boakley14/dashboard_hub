@@ -26,7 +26,7 @@ export function initInfoPanel(entry) {
   _setText('ip-tags',     (entry.tags || []).join(', ') || '—');
 
   // Data connection section
-  const hasDC = entry.dataConnection || entry.datasetId;
+  const hasDC = entry.dataConnection || entry.datasetId || entry.queryCount;
   _show('ip-connection-section', Boolean(hasDC));
 
   if (hasDC) {
@@ -50,8 +50,8 @@ export function initInfoPanel(entry) {
     if (sel) {
       sel.innerHTML = '';
       const queryNames = qs.length
-        ? qs.map(q => q.queryName || q.id)
-        : ['metric-trend'];
+        ? qs.map(q => q.queryId || q.queryName || q.id)
+        : (entry.queryCount ? ['(loading stored config...)'] : ['metric-trend']);
       queryNames.forEach(qn => {
         const opt = document.createElement('option');
         opt.value = opt.textContent = qn;
@@ -150,8 +150,8 @@ export function closePreviewModal() {
 
 async function _runPreview() {
   const sel       = document.getElementById('preview-query-sel');
-  const queryName = sel?.value;
-  if (!queryName) return;
+  const selectedQuery = sel?.value;
+  if (!selectedQuery) return;
 
   const dashboardId = _entry?.id || _entry?.dashboardId || '';
   const statusEl    = document.getElementById('preview-status');
@@ -166,8 +166,11 @@ async function _runPreview() {
   if (emptyEl)   emptyEl.hidden   = true;
 
   try {
-    const params = new URLSearchParams({ queryName });
+    const params = new URLSearchParams();
     if (dashboardId) params.set('dashboardId', dashboardId);
+    const storedQuery = (_config?.queries || []).find(q => q.queryId === selectedQuery);
+    if (storedQuery?.queryId) params.set('queryId', storedQuery.queryId);
+    else params.set('queryName', selectedQuery);
 
     const res  = await fetch(`/api/preview?${params}`);
     const data = await res.json();
@@ -240,7 +243,7 @@ async function _loadConfigAndMeta(dashboardId) {
   try {
     const res  = await fetch(`/api/dashboard-config?dashboardId=${encodeURIComponent(dashboardId)}`);
     if (!res.ok) return;
-    const { config, metadata } = await res.json();
+    const { config, metadata, validation } = await res.json();
 
     _config   = config;
     _metadata = metadata;
@@ -253,6 +256,26 @@ async function _loadConfigAndMeta(dashboardId) {
       inspectorEl.textContent = JSON.stringify(config, null, 2);
     } else if (inspectorEl) {
       inspectorEl.textContent = '(No hub config stored for this dashboard)';
+    }
+    if (config) {
+      _show('ip-connection-section', true);
+      _show('ip-refresh-section', true);
+      _show('ip-actions-section', true);
+      _setText('ip-workspace', config.dataSource?.workspaceId || _entry?.workspaceId || '—');
+      _setText('ip-dataset', config.dataSource?.datasetId || _entry?.datasetId || '—');
+      _setText('ip-queries', `${config.queries?.length || validation?.queryCount || 0} queries`);
+      _setText('ip-refresh-mode', config.refresh?.mode || 'Centralized (Hub executes queries)');
+
+      const sel = document.getElementById('preview-query-sel');
+      if (sel) {
+        sel.innerHTML = '';
+        (config.queries || []).forEach(q => {
+          const opt = document.createElement('option');
+          opt.value = q.queryId;
+          opt.textContent = q.queryId;
+          sel.appendChild(opt);
+        });
+      }
     }
   } catch { /* non-fatal */ }
 }
@@ -269,8 +292,10 @@ function _toggleInspector() {
 function _statusBadge(status) {
   const map = {
     success: ['ip-badge-success', 'Success'],
-    error:   ['ip-badge-error',   'Error'],
-    partial: ['ip-badge-partial', 'Partial'],
+    failed:  ['ip-badge-error',   'Failed'],
+    error:   ['ip-badge-error',   'Failed'],
+    partial: ['ip-badge-error',   'Failed'],
+    never:   ['ip-badge-pending', 'Never'],
   };
   const [cls, label] = map[status] || ['ip-badge-pending', status || 'Unknown'];
   return `<span class="ip-badge ${cls}">${label}</span>`;

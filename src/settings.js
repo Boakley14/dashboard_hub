@@ -349,10 +349,11 @@ $('publish-form').addEventListener('submit', async e => {
 
 // ---- Connection status helpers -----------------------------
 function _connectionStatus(d) {
-  if (d.dataConnection?.sourceId)  return { label: 'Connected', cls: 'ds-status-connected',  dot: '🟢' };
-  if (d.dataConnection)            return { label: 'Inline',    cls: 'ds-status-inline',     dot: '🟡' };
-  if (d.powerBiSources?.length)    return { label: 'Embedded',  cls: 'ds-status-embedded',   dot: '🔵' };
-  return                                  { label: 'No data',   cls: 'ds-status-none',        dot: '⚫' };
+  if (d.dataConnection?.sourceId)  return { label: 'Connected', cls: 'ds-status-connected', dot: '*' };
+  if (d.dataConnection)            return { label: 'Inline', cls: 'ds-status-inline', dot: '*' };
+  if (d.queryCount || d.datasetId) return { label: 'Hub-managed', cls: 'ds-status-inline', dot: '*' };
+  if (d.powerBiSources?.length)    return { label: 'Embedded', cls: 'ds-status-embedded', dot: '*' };
+  return { label: 'No data', cls: 'ds-status-none', dot: '-' };
 }
 
 // ---- Manage dashboards -------------------------------------
@@ -685,3 +686,5 @@ inputDate.value = todayIso();
 loadCategorySuggestions();
 loadManageList();
 initDataSources();
+
+

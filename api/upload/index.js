@@ -137,9 +137,18 @@ async function handleNewFormatUpload(context, body, host, sasToken) {
   }
 
   const dashboardId = config.dashboardId;
-  const id          = entry.id || dashboardId;
+  if (entry.id && entry.id !== dashboardId) {
+    context.res = {
+      status: 400,
+      body: { error: 'Dashboard package is incomplete or invalid.', detail: `Cross-file identity mismatch: entry.id "${entry.id}" must match dashboardId "${dashboardId}".` },
+    };
+    return;
+  }
+  const id          = dashboardId;
   const now         = new Date().toISOString();
   const blobBase    = `https://${host}/${CONTAINER}`;
+  const canonicalFilename = `${dashboardId}/dashboard.html`;
+  const canonicalBlobUrl = `${blobBase}/${canonicalFilename}`;
 
   try {
     const htmlBuffer   = Buffer.from(htmlContent,   'utf-8');
@@ -154,18 +163,24 @@ async function handleNewFormatUpload(context, body, host, sasToken) {
     // ── Feature 5: Initial metadata (Feature 10 will update on refresh) ─────
     const initMeta = {
       dashboardId,
+      slug:                  config.slug || dashboardId,
       title:                 config.title,
       category:              config.category               || entry.category || '',
+      owner:                 config.owner || { name: entry.author || '', email: '' },
       workspaceId:           config.dataSource.workspaceId,
       datasetId:             config.dataSource.datasetId,
       datasetName:           config.dataSource.datasetName || '',
       createdUtc:            config.createdUtc             || now,
-      lastModifiedUtc:       now,
+      lastModifiedUtc:       config.lastModifiedUtc        || now,
       lastRefreshUtc:        null,
       lastRefreshStatus:     'never',
       lastRefreshDurationMs: null,
       uploadedUtc:           now,
       schemaVersion:         '1.0',
+      configVersion:         config.version,
+      queryCount:            config.queries.length,
+      refreshMode:           config.refresh?.mode || 'hub-managed',
+      previewEnabled:        Boolean(config.preview?.enabled)
     };
     await blobPut(
       host,
@@ -178,7 +193,7 @@ async function handleNewFormatUpload(context, body, host, sasToken) {
     const flatFilename = htmlFilename || `${dashboardId}.html`;
     await blobPut(host, `/${CONTAINER}/${flatFilename}?${sasToken}`, htmlBuffer, 'text/html; charset=utf-8');
 
-    const blobUrl = `${blobBase}/${flatFilename}`;
+    const legacyBlobUrl = `${blobBase}/${flatFilename}`;
 
     // ── Update registry.json (legacy flat list) ──────────────────────────────
     let registry = [];
@@ -186,7 +201,24 @@ async function handleNewFormatUpload(context, body, host, sasToken) {
     if (regRes.statusCode === 200) {
       try { registry = JSON.parse(regRes.body); } catch { registry = []; }
     }
-    const fullEntry = { ...entry, id, blobUrl, filename: flatFilename };
+    const fullEntry = {
+      ...entry,
+      id,
+      dashboardId,
+      slug: config.slug || dashboardId,
+      owner: config.owner || null,
+      blobUrl: canonicalBlobUrl,
+      legacyBlobUrl,
+      filename: canonicalFilename,
+      workspaceId: config.dataSource.workspaceId,
+      datasetId: config.dataSource.datasetId,
+      datasetName: config.dataSource.datasetName || '',
+      queryCount: config.queries.length,
+      lastModifiedUtc: config.lastModifiedUtc || now,
+      lastRefreshUtc: null,
+      lastRefreshStatus: 'never',
+      hubCompatible: true
+    };
     registry = registry.filter(d => d.id !== id);
     registry.push(fullEntry);
     await blobPut(host, `/${CONTAINER}/${REGISTRY_BLOB}?${sasToken}`,
@@ -205,16 +237,25 @@ async function handleNewFormatUpload(context, body, host, sasToken) {
       category:       config.category        || entry.category    || '',
       author:         entry.author           || '',
       tags:           entry.tags             || [],
-      filename:       flatFilename,
-      blobUrl,
+      owner:          config.owner || null,
+      slug:           config.slug || dashboardId,
+      filename:       canonicalFilename,
+      blobUrl:        canonicalBlobUrl,
+      legacyBlobUrl,
       createdUtc:     config.createdUtc      || now,
+      lastModifiedUtc: config.lastModifiedUtc || now,
       uploadedUtc:    now,
       lastRefreshUtc: null,
+      lastRefreshStatus: 'never',
       schemaVersion:  '1.0',
+      configVersion:  config.version,
       workspaceId:    config.dataSource.workspaceId,
       datasetId:      config.dataSource.datasetId,
       datasetName:    config.dataSource.datasetName || '',
       queryCount:     config.queries.length,
+      refreshMode:    config.refresh?.mode || 'hub-managed',
+      previewEnabled: Boolean(config.preview?.enabled),
+      hubCompatible:  true
     };
     // Feature 16: upsert — replace if dashboardId already exists
     index = index.filter(d => d.dashboardId !== dashboardId);
@@ -224,7 +265,14 @@ async function handleNewFormatUpload(context, body, host, sasToken) {
 
     context.res = {
       status: 200,
-      body: { success: true, id: dashboardId, blobUrl, schemaVersion: '1.0', queryCount: config.queries.length },
+      body: {
+        success: true,
+        id: dashboardId,
+        blobUrl: canonicalBlobUrl,
+        legacyBlobUrl,
+        schemaVersion: '1.0',
+        queryCount: config.queries.length
+      },
     };
 
   } catch (err) {
@@ -357,13 +405,28 @@ function validateNewConfigSchema(config) {
   const errors = [];
   if (!config.version)                                                        errors.push('Missing: version');
   if (!config.dashboardId)                                                    errors.push('Missing: dashboardId');
+  if (!config.slug)                                                           errors.push('Missing: slug');
   if (!config.title)                                                          errors.push('Missing: title');
+  if (!config.description)                                                    errors.push('Missing: description');
+  if (!config.category)                                                       errors.push('Missing: category');
+  if (!config.owner)                                                          errors.push('Missing: owner');
+  if (!config.createdUtc)                                                     errors.push('Missing: createdUtc');
+  if (!config.lastModifiedUtc)                                                errors.push('Missing: lastModifiedUtc');
   if (!config.dataSource?.workspaceId)                                        errors.push('Missing: dataSource.workspaceId');
   if (!config.dataSource?.datasetId)                                          errors.push('Missing: dataSource.datasetId');
+  if (!config.dataSource?.datasetName)                                        errors.push('Missing: dataSource.datasetName');
+  if (config.dataSource?.type !== 'powerbi-semantic-model')                   errors.push(`dataSource.type must be "powerbi-semantic-model" (got "${config.dataSource?.type}")`);
+  if (config.dataSource?.authMode !== 'hub-managed')                          errors.push(`dataSource.authMode must be "hub-managed" (got "${config.dataSource?.authMode}")`);
   if (!Array.isArray(config.queries) || !config.queries.length)               errors.push('Missing: queries (must be a non-empty array)');
   if (!Array.isArray(config.visualBindings) || !config.visualBindings.length) errors.push('Missing: visualBindings (must be a non-empty array)');
   if (!config.refresh?.mode)                                                  errors.push('Missing: refresh.mode');
+  if (config.refresh?.mode && config.refresh.mode !== 'hub-managed')          errors.push(`refresh.mode must be "hub-managed" (got "${config.refresh.mode}")`);
+  if (config.refresh?.minRefreshIntervalSeconds == null)                      errors.push('Missing: refresh.minRefreshIntervalSeconds');
+  if (config.refresh?.timeoutSeconds == null)                                 errors.push('Missing: refresh.timeoutSeconds');
   if (config.preview?.enabled === undefined)                                  errors.push('Missing: preview.enabled');
+  if (config.preview?.maxRows == null)                                        errors.push('Missing: preview.maxRows');
+  if (config.preview?.timeoutSeconds == null)                                 errors.push('Missing: preview.timeoutSeconds');
+  if (!config.security)                                                       errors.push('Missing: security');
 
   if (Array.isArray(config.queries)) {
     if (config.queries.length > 10) errors.push(`Query limit exceeded: ${config.queries.length} queries defined (max 10)`);
@@ -375,6 +438,19 @@ function validateNewConfigSchema(config) {
       if (q.engine !== 'powerbi-executeQueries') errors.push(`queries[${i}]: engine must be "powerbi-executeQueries" (got "${q.engine}")`);
       if (q.language !== 'dax')                  errors.push(`queries[${i}]: language must be "dax" (got "${q.language}")`);
       if (!q.text || !q.text.trim())             errors.push(`queries[${i}]: text (inline DAX) is required and must not be empty`);
+      if (q.text && !/^\s*EVALUATE\b/i.test(q.text)) errors.push(`queries[${i}]: text must start with EVALUATE`);
+    });
+  }
+  if (Array.isArray(config.visualBindings) && Array.isArray(config.queries)) {
+    const validQueryIds = new Set(config.queries.map(q => q.queryId).filter(Boolean));
+    config.visualBindings.forEach((binding, i) => {
+      if (!binding.visualId) errors.push(`visualBindings[${i}]: missing visualId`);
+      if (!binding.visualType) errors.push(`visualBindings[${i}]: missing visualType`);
+      if (!binding.queryId) errors.push(`visualBindings[${i}]: missing queryId`);
+      if (!binding.title) errors.push(`visualBindings[${i}]: missing title`);
+      if (binding.queryId && !validQueryIds.has(binding.queryId)) {
+        errors.push(`visualBindings[${i}]: queryId "${binding.queryId}" does not map to a defined query`);
+      }
     });
   }
   return errors;

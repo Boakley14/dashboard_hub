@@ -31,14 +31,28 @@ function sendToIframe(type, payload) {
   iframe.contentWindow.postMessage({ type, payload }, '*');
 }
 
+function updateDiagnostics(patch) {
+  window.__dashboardHubDiagnostics = {
+    ...(window.__dashboardHubDiagnostics || {}),
+    ...patch,
+  };
+}
+
 async function loadStoredDashboardConfig(dashboardId) {
   if (!dashboardId) return null;
   try {
     const res = await fetch(`/api/dashboard-config?dashboardId=${encodeURIComponent(dashboardId)}`);
     if (!res.ok) return null;
     const data = await res.json();
+    updateDiagnostics({
+      dashboardId,
+      configLoadStatus: data?.validation?.configFound ? 'loaded' : 'missing',
+      configQueryCount: data?.validation?.queryCount || 0,
+      resolvedConfigPath: data?.resolvedConfigPath || null,
+    });
     return data?.config || null;
   } catch {
+    updateDiagnostics({ dashboardId, configLoadStatus: 'failed' });
     return null;
   }
 }
@@ -83,7 +97,8 @@ async function executeRefresh({ entry, dataConnection, refreshBtn, refreshTs, si
       throw new Error(data.error || `Refresh failed (HTTP ${res.status})`);
     }
 
-    const { results, refreshedAt } = data;
+    const { results, refreshedAt, diagnostics } = data;
+    const hadErrors = Object.values(results).some((r) => r.error);
 
     sendToIframe('dashboardHub.refreshData', {
       dashboardId: entry.id,
@@ -93,8 +108,15 @@ async function executeRefresh({ entry, dataConnection, refreshBtn, refreshTs, si
 
     updateRefreshStatus({
       lastRefreshUtc: refreshedAt,
-      lastRefreshStatus: Object.values(results).some((r) => r.error) ? 'partial' : 'success',
+      lastRefreshStatus: hadErrors ? 'failed' : 'success',
       lastRefreshDurationMs: Date.now() - startTime,
+    });
+    updateDiagnostics({
+      lastRefreshStatus: hadErrors ? 'failed' : 'success',
+      lastRefreshUtc: refreshedAt,
+      postMessageSent: true,
+      refreshDiagnostics: diagnostics || null,
+      lastRuntimeError: hadErrors ? 'One or more queries returned an error.' : null,
     });
 
     if (refreshTs) {
@@ -107,8 +129,13 @@ async function executeRefresh({ entry, dataConnection, refreshBtn, refreshTs, si
 
     updateRefreshStatus({
       lastRefreshUtc: new Date().toISOString(),
-      lastRefreshStatus: 'error',
+      lastRefreshStatus: 'failed',
       lastRefreshDurationMs: Date.now() - startTime,
+    });
+    updateDiagnostics({
+      lastRefreshStatus: 'failed',
+      postMessageSent: true,
+      lastRuntimeError: err.message,
     });
 
     if (refreshTs) {
@@ -185,6 +212,10 @@ async function init() {
 
   const storedConfig = await loadStoredDashboardConfig(entry.id);
   const dataConnection = buildDataConnection(entry, storedConfig);
+  const minRefreshIntervalMs = Math.max(
+    Number(storedConfig?.refresh?.minRefreshIntervalSeconds || 60) * 1000,
+    0
+  );
 
   initInfoPanel(entry);
   const infoBtn = document.getElementById('btn-info');
@@ -211,9 +242,9 @@ async function init() {
 
     const runRefresh = async ({ ignoreCooldown = false, silent = false } = {}) => {
       const now = Date.now();
-      if (!ignoreCooldown && now - lastRefreshTime < 60_000) {
+      if (!ignoreCooldown && now - lastRefreshTime < minRefreshIntervalMs) {
         if (refreshTs) {
-          refreshTs.textContent = 'Please wait before refreshing again.';
+          refreshTs.textContent = `Please wait ${Math.ceil(minRefreshIntervalMs / 1000)} seconds before refreshing again.`;
           refreshTs.hidden = false;
         }
         return;
@@ -232,7 +263,9 @@ async function init() {
     const iframe = document.getElementById('dashboard-iframe');
     if (iframe) {
       iframe.addEventListener('load', () => {
-        runRefresh({ ignoreCooldown: true, silent: true });
+        updateDiagnostics({ iframeLoaded: true });
+        sendToIframe('dashboardHub.showLoading');
+        runRefresh({ ignoreCooldown: true, silent: false });
       }, { once: true });
     }
 

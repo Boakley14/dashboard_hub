@@ -195,6 +195,7 @@ module.exports = async function (context, req) {
 
   // Load stored config when dashboardId provided but no inline queries
   let isNewSchema = false;
+  let refreshPolicy = null;
   if (dashboardId && host && sasToken && (!queries || !queries.length)) {
     const configRes = await blobGetWithFallback(host,
       `/${CONTAINER}/${dashboardId}/dashboard.config.json?${sasToken}`,
@@ -202,7 +203,13 @@ module.exports = async function (context, req) {
     if (configRes.statusCode === 200) {
       try {
         const cfg = JSON.parse(configRes.body);
-        queries = cfg.queries || [];
+        refreshPolicy = cfg.refresh || null;
+        queries = (cfg.queries || []).map(q => ({
+          ...q,
+          workspaceId: q.workspaceId || cfg.dataSource?.workspaceId || DEFAULT_WORKSPACE,
+          datasetId: q.datasetId || cfg.dataSource?.datasetId || DEFAULT_DATASET,
+          timeoutSeconds: q.timeoutSeconds ?? cfg.refresh?.timeoutSeconds ?? 30,
+        }));
         // New schema queries have inline DAX text and use queryId (not id/queryName)
         isNewSchema = queries.length > 0 && Boolean(queries[0].text);
       } catch { /* use inline queries */ }
@@ -238,10 +245,20 @@ module.exports = async function (context, req) {
         const meta = JSON.parse(metaRes.body);
         if (meta.lastRefreshUtc) {
           const elapsed = Date.now() - new Date(meta.lastRefreshUtc).getTime();
-          if (elapsed < 60_000) {
+          const minRefreshIntervalMs = Math.max(
+            Number(refreshPolicy?.minRefreshIntervalSeconds || 60) * 1000,
+            0
+          );
+          if (elapsed < minRefreshIntervalMs) {
             context.res = {
-              status: 429, headers: { ...CORS, 'Retry-After': '60' },
-              body: { error: 'Refresh rate limit: please wait at least 60 seconds between refreshes.' },
+              status: 429,
+              headers: {
+                ...CORS,
+                'Retry-After': String(Math.ceil(minRefreshIntervalMs / 1000)),
+              },
+              body: {
+                error: `Refresh rate limit: please wait at least ${Math.ceil(minRefreshIntervalMs / 1000)} seconds between refreshes.`,
+              },
             };
             return;
           }
@@ -264,7 +281,7 @@ module.exports = async function (context, req) {
         const queryKey = q.queryId || q.id;
         const wsId     = q.workspaceId || DEFAULT_WORKSPACE;
         const dsId     = q.datasetId   || DEFAULT_DATASET;
-        const timeout  = (q.timeoutSeconds ?? 30) * 1000;
+        const timeout  = (q.timeoutSeconds ?? refreshPolicy?.timeoutSeconds ?? 30) * 1000;
         try {
           const pbiRes = await pbiPost(token,
             `/v1.0/myorg/groups/${wsId}/datasets/${dsId}/executeQueries`,
@@ -329,7 +346,7 @@ module.exports = async function (context, req) {
     if (dashboardId && host && sasToken) {
       const meta = {
         lastRefreshUtc:        refreshedAt,
-        lastRefreshStatus:     hasError ? 'partial' : 'success',
+        lastRefreshStatus:     hasError ? 'failed' : 'success',
         lastRefreshDurationMs: durationMs,
       };
       const metaPath = isNewSchema
@@ -344,7 +361,18 @@ module.exports = async function (context, req) {
 
     context.res = {
       status: 200, headers: CORS,
-      body: { results, refreshedAt, durationMs, queryCount: queries.length },
+      body: {
+        results,
+        refreshedAt,
+        durationMs,
+        queryCount: queries.length,
+        diagnostics: {
+          dashboardId: dashboardId || null,
+          queryCount: queries.length,
+          hadErrors: hasError,
+          mode: dashboardId ? 'stored-config' : 'inline',
+        },
+      },
     };
 
   } catch (err) {
@@ -352,7 +380,7 @@ module.exports = async function (context, req) {
     if (dashboardId && host && sasToken) {
       const meta = {
         lastRefreshUtc:        new Date().toISOString(),
-        lastRefreshStatus:     'error',
+        lastRefreshStatus:     'failed',
         lastRefreshDurationMs: durationMs,
         lastRefreshError:      err.message,
       };

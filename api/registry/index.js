@@ -53,20 +53,32 @@ module.exports = async function (context, req) {
     // Normalise index entries to match the shape callers expect
     const normIndex = indexed.map(e => ({
       id:          e.dashboardId || e.id,
+      dashboardId: e.dashboardId || e.id,
+      slug:        e.slug        || e.dashboardId || e.id,
       title:       e.title       || '',
       description: e.description || '',
       category:    e.category    || '',
       author:      e.author      || '',
+      owner:       e.owner       || null,
       tags:        e.tags        || [],
       filename:    e.filename    || '',
       blobUrl:     e.blobUrl     || '',
+      legacyBlobUrl: e.legacyBlobUrl || '',
       dateAdded:   e.createdUtc  ? e.createdUtc.slice(0, 10) : '',
       // Extended fields (available to viewer/settings panel)
       datasetId:     e.datasetId     || null,
       workspaceId:   e.workspaceId   || null,
+      datasetName:   e.datasetName   || '',
       queryCount:    e.queryCount    || 0,
       hubCompatible: e.hubCompatible || false,
+      createdUtc:    e.createdUtc    || null,
+      lastModifiedUtc: e.lastModifiedUtc || null,
       lastRefreshUtc: e.lastRefreshUtc || null,
+      lastRefreshStatus: e.lastRefreshStatus || 'never',
+      schemaVersion: e.schemaVersion || null,
+      configVersion: e.configVersion || null,
+      refreshMode: e.refreshMode || null,
+      previewEnabled: Boolean(e.previewEnabled),
     }));
 
     const merged = [...legacyOnly, ...normIndex];

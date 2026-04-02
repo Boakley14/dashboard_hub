@@ -56,17 +56,34 @@ module.exports = async function (context, req) {
 
     let config   = null;
     let metadata = null;
+    let resolvedConfigPath = null;
+    let resolvedMetadataPath = null;
 
     if (cfgRes.statusCode === 200) {
+      resolvedConfigPath = cfgRes.pathUsed || null;
       try { config = JSON.parse(cfgRes.body); } catch { /* malformed */ }
     }
     if (metaRes.statusCode === 200) {
+      resolvedMetadataPath = metaRes.pathUsed || null;
       try { metadata = JSON.parse(metaRes.body); } catch { /* malformed */ }
     }
 
     context.res = {
       status: 200, headers: CORS,
-      body: { dashboardId, config, metadata, fetchedAt: new Date().toISOString() },
+      body: {
+        dashboardId,
+        config,
+        metadata,
+        resolvedConfigPath,
+        resolvedMetadataPath,
+        validation: {
+          configFound: Boolean(config),
+          metadataFound: Boolean(metadata),
+          queryCount: config?.queries?.length || 0,
+          previewEnabled: Boolean(config?.preview?.enabled)
+        },
+        fetchedAt: new Date().toISOString()
+      },
     };
 
   } catch (err) {
@@ -93,8 +110,11 @@ function blobGet(host, path) {
 // Try primaryPath first; if 404, try fallbackPath.
 async function blobGetWithFallback(host, primaryPath, fallbackPath) {
   const primary = await blobGet(host, primaryPath);
+  primary.pathUsed = primaryPath;
   if (primary.statusCode === 404 && fallbackPath) {
-    return blobGet(host, fallbackPath);
+    const fallback = await blobGet(host, fallbackPath);
+    fallback.pathUsed = fallbackPath;
+    return fallback;
   }
   return primary;
 }

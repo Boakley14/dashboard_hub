@@ -89,6 +89,7 @@ export function buildEntry(data) {
 
   return {
     id:          data.id.trim(),
+    dashboardId: data.id.trim(),
     title:       data.title.trim(),
     description: data.description.trim(),
     category:    data.category.trim(),
