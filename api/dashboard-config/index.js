@@ -44,10 +44,14 @@ module.exports = async function (context, req) {
   const host = `${account}.blob.core.windows.net`;
 
   try {
-    // Fetch config and metadata in parallel
+    // Fetch config and metadata in parallel — try new v1.0 paths first, fall back to legacy
     const [cfgRes, metaRes] = await Promise.all([
-      blobGet(host, `/${CONTAINER}/${dashboardId}/config.json?${sasToken}`),
-      blobGet(host, `/${CONTAINER}/${dashboardId}/metadata.json?${sasToken}`),
+      blobGetWithFallback(host,
+        `/${CONTAINER}/${dashboardId}/dashboard.config.json?${sasToken}`,
+        `/${CONTAINER}/${dashboardId}/config.json?${sasToken}`),
+      blobGetWithFallback(host,
+        `/${CONTAINER}/${dashboardId}/dashboard.metadata.json?${sasToken}`,
+        `/${CONTAINER}/${dashboardId}/metadata.json?${sasToken}`),
     ]);
 
     let config   = null;
@@ -84,4 +88,13 @@ function blobGet(host, path) {
     req.on('error', reject);
     req.end();
   });
+}
+
+// Try primaryPath first; if 404, try fallbackPath.
+async function blobGetWithFallback(host, primaryPath, fallbackPath) {
+  const primary = await blobGet(host, primaryPath);
+  if (primary.statusCode === 404 && fallbackPath) {
+    return blobGet(host, fallbackPath);
+  }
+  return primary;
 }

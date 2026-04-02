@@ -107,19 +107,12 @@ ORDER BY [type], [value]`.trim(),
 module.exports = async function (context, req) {
   const params      = req.query ?? {};
   const queryName   = params.queryName;
+  const queryId     = params.queryId;    // new-schema mode
   const dashboardId = params.dashboardId;
   const limit       = Math.min(parseInt(params.limit) || MAX_PREVIEW_ROWS, MAX_PREVIEW_ROWS);
 
-  if (!queryName) {
-    context.res = { status: 400, headers: CORS, body: { error: 'Missing required param: queryName' } };
-    return;
-  }
-  const builder = NAMED_QUERIES[queryName];
-  if (!builder) {
-    context.res = {
-      status: 400, headers: CORS,
-      body: { error: `Unknown queryName: "${queryName}"`, available: Object.keys(NAMED_QUERIES) },
-    };
+  if (!queryName && !queryId) {
+    context.res = { status: 400, headers: CORS, body: { error: 'Missing required param: queryName or queryId' } };
     return;
   }
 
@@ -134,18 +127,106 @@ module.exports = async function (context, req) {
     return;
   }
 
+  // ── New-schema mode: queryId + dashboardId → load config, find query, execute inline DAX ──
+  if (queryId && dashboardId && account && sasToken) {
+    const host   = `${account}.blob.core.windows.net`;
+    const cfgRes = await blobGetWithFallback(host,
+      `/${CONTAINER}/${dashboardId}/dashboard.config.json?${sasToken}`,
+      `/${CONTAINER}/${dashboardId}/config.json?${sasToken}`);
+
+    if (cfgRes.statusCode !== 200) {
+      context.res = { status: 404, headers: CORS, body: { error: 'Dashboard config not found.' } };
+      return;
+    }
+
+    let cfg;
+    try { cfg = JSON.parse(cfgRes.body); } catch {
+      context.res = { status: 500, headers: CORS, body: { error: 'Dashboard config is malformed.' } };
+      return;
+    }
+
+    const query = (cfg.queries || []).find(q => q.queryId === queryId);
+    if (!query) {
+      context.res = { status: 404, headers: CORS, body: { error: `Query "${queryId}" not found in dashboard config.` } };
+      return;
+    }
+    if (!query.text) {
+      context.res = { status: 400, headers: CORS, body: { error: `Query "${queryId}" has no inline DAX text.` } };
+      return;
+    }
+
+    const previewLimit   = Math.min(cfg.preview?.maxRows  ?? MAX_PREVIEW_ROWS, MAX_PREVIEW_ROWS);
+    const timeoutMs      = (cfg.preview?.timeoutSeconds ?? 5) * 1000;
+    const workspaceId    = cfg.dataSource?.workspaceId || DEFAULT_WORKSPACE;
+    const datasetId      = cfg.dataSource?.datasetId   || DEFAULT_DATASET;
+
+    try {
+      const token  = await getAccessToken(tenantId, clientId, clientSecret);
+      const pbiRes = await pbiPost(token,
+        `/v1.0/myorg/groups/${workspaceId}/datasets/${datasetId}/executeQueries`,
+        { queries: [{ query: query.text }], serializerSettings: { includeNulls: true } },
+        timeoutMs
+      );
+
+      if (pbiRes.status !== 200) {
+        const msg = pbiRes.body?.error?.pbi?.error?.details?.[0]?.detail?.value
+                 ?? pbiRes.body?.error?.message
+                 ?? `Power BI HTTP ${pbiRes.status}`;
+        context.res = { status: 200, headers: CORS, body: { error: 'Preview failed', detail: msg } };
+        return;
+      }
+
+      const table   = pbiRes.body?.results?.[0]?.tables?.[0];
+      const columns = (table?.columns ?? []).map(c => {
+        const m = c.name.match(/\[([^\]]+)\]$/);
+        return m ? m[1] : c.name;
+      });
+      const allRows = (table?.rows ?? []).map(r => columns.map(c => {
+        const rawKey = Object.keys(r).find(k => { const m = k.match(/\[([^\]]+)\]$/); return (m ? m[1] : k) === c; });
+        return rawKey !== undefined ? r[rawKey] : null;
+      }));
+      const rows    = allRows.slice(0, previewLimit);
+
+      context.res = {
+        status: 200, headers: CORS,
+        body: { columns, rows, count: rows.length, totalRows: allRows.length,
+                limited: allRows.length > previewLimit, queryId, fetchedAt: new Date().toISOString() },
+      };
+    } catch (err) {
+      context.log?.error('[preview/new]', err.message);
+      context.res = { status: 200, headers: CORS, body: { error: 'Preview failed', detail: err.message } };
+    }
+    return;
+  }
+
+  // ── Legacy mode: queryName → NAMED_QUERIES dict ───────────────────────
+  if (!queryName) {
+    context.res = { status: 400, headers: CORS, body: { error: 'Missing required param: queryName (or provide queryId + dashboardId for new-schema dashboards)' } };
+    return;
+  }
+  const builder = NAMED_QUERIES[queryName];
+  if (!builder) {
+    context.res = {
+      status: 400, headers: CORS,
+      body: { error: `Unknown queryName: "${queryName}"`, available: Object.keys(NAMED_QUERIES) },
+    };
+    return;
+  }
+
   // Resolve workspace/dataset — try stored config, then params, then defaults
   let workspaceId = params.workspaceId || DEFAULT_WORKSPACE;
   let datasetId   = params.datasetId   || DEFAULT_DATASET;
 
   if (dashboardId && account && sasToken) {
-    const host      = `${account}.blob.core.windows.net`;
-    const cfgRes    = await blobGet(host, `/${CONTAINER}/${dashboardId}/config.json?${sasToken}`);
+    const host   = `${account}.blob.core.windows.net`;
+    const cfgRes = await blobGetWithFallback(host,
+      `/${CONTAINER}/${dashboardId}/dashboard.config.json?${sasToken}`,
+      `/${CONTAINER}/${dashboardId}/config.json?${sasToken}`);
     if (cfgRes.statusCode === 200) {
       try {
         const cfg   = JSON.parse(cfgRes.body);
-        workspaceId = cfg.workspaceId || workspaceId;
-        datasetId   = cfg.datasetId   || datasetId;
+        workspaceId = cfg.dataSource?.workspaceId || cfg.workspaceId || workspaceId;
+        datasetId   = cfg.dataSource?.datasetId   || cfg.datasetId   || datasetId;
       } catch { /* use defaults */ }
     }
   }
@@ -276,4 +357,13 @@ function blobGet(host, path) {
     req.on('error', reject);
     req.end();
   });
+}
+
+// Try primaryPath first; if 404, try fallbackPath.
+async function blobGetWithFallback(host, primaryPath, fallbackPath) {
+  const primary = await blobGet(host, primaryPath);
+  if (primary.statusCode === 404 && fallbackPath) {
+    return blobGet(host, fallbackPath);
+  }
+  return primary;
 }

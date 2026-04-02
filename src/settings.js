@@ -187,6 +187,10 @@ const inputFile        = $('input-file');
 const fileDropZone     = $('file-drop-zone');
 const fileDropLabel    = $('file-drop-label');
 const fileDropHint     = $('file-drop-hint');
+const inputConfigFile  = $('input-config-file');
+const configDropZone   = $('config-drop-zone');
+const configDropLabel  = $('config-drop-label');
+const configDropHint   = $('config-drop-hint');
 const inputTitle       = $('input-title');
 const inputId          = $('input-id');
 const inputDescription = $('input-description');
@@ -198,8 +202,10 @@ const inputNewtab      = $('input-newtab');
 const categoryList     = $('category-suggestions');
 const stepUpload       = $('step-upload');
 
-let selectedFile = null;
+let selectedFile       = null;
+let selectedConfigFile = null;
 
+// ── HTML file drop zone ──────────────────────────────────────────────
 inputFile.addEventListener('change', () => {
   if (inputFile.files[0]) setSelectedFile(inputFile.files[0]);
 });
@@ -222,6 +228,29 @@ function setSelectedFile(file) {
     inputTitle.value = titled.charAt(0).toUpperCase() + titled.slice(1);
     inputId.value    = slugify(inputTitle.value);
   }
+}
+
+// ── Config JSON drop zone ────────────────────────────────────────────
+if (inputConfigFile) {
+  inputConfigFile.addEventListener('change', () => {
+    if (inputConfigFile.files[0]) setSelectedConfigFile(inputConfigFile.files[0]);
+  });
+}
+if (configDropZone) {
+  configDropZone.addEventListener('dragover', e => { e.preventDefault(); configDropZone.classList.add('drag-over'); });
+  configDropZone.addEventListener('dragleave', () => configDropZone.classList.remove('drag-over'));
+  configDropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    configDropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) setSelectedConfigFile(e.dataTransfer.files[0]);
+  });
+}
+
+function setSelectedConfigFile(file) {
+  selectedConfigFile = file;
+  if (configDropZone) configDropZone.classList.add('has-file');
+  if (configDropLabel) configDropLabel.textContent = file.name;
+  if (configDropHint)  configDropHint.textContent  = `${(file.size / 1024).toFixed(1)} KB — ready to upload`;
 }
 
 inputTitle.addEventListener('input', () => { inputId.value = slugify(inputTitle.value); });
@@ -257,6 +286,12 @@ $('publish-form').addEventListener('submit', async e => {
   e.preventDefault();
   hideAlert();
 
+  // Both files are required for new-schema uploads
+  if (!selectedConfigFile) {
+    showAlert('error', `<strong>Please fix the following:</strong><ul><li>Config JSON file (dashboard.config.json) is required</li></ul>`);
+    return;
+  }
+
   const data = {
     file: selectedFile, title: inputTitle.value, id: inputId.value,
     description: inputDescription.value, category: inputCategory.value,
@@ -275,12 +310,21 @@ $('publish-form').addEventListener('submit', async e => {
   showProgress();
 
   try {
-    const content = await readFileAsText(selectedFile);
-    const entry   = buildEntry(data);
+    const [htmlContent, configContent] = await Promise.all([
+      readFileAsText(selectedFile),
+      readFileAsText(selectedConfigFile),
+    ]);
+    const entry = buildEntry(data);
 
     const res = await fetch('/api/upload', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename: selectedFile.name, content, entry })
+      body: JSON.stringify({
+        htmlContent,
+        htmlFilename:   selectedFile.name,
+        configContent,
+        configFilename: selectedConfigFile.name,
+        entry,
+      })
     });
 
     if (!res.ok) {
@@ -377,9 +421,13 @@ window.deleteDashboard = async function (btn) {
 function resetForm() {
   $('publish-form').reset();
   selectedFile = null;
+  selectedConfigFile = null;
   fileDropZone.classList.remove('has-file', 'drag-over');
   fileDropLabel.textContent = 'Click to select or drag & drop';
   fileDropHint.textContent  = 'Accepts .html files';
+  if (configDropZone)  configDropZone.classList.remove('has-file', 'drag-over');
+  if (configDropLabel) configDropLabel.textContent = 'Click to select or drag & drop';
+  if (configDropHint)  configDropHint.textContent  = 'Accepts .json files';
   publishProgress.hidden    = true;
 }
 

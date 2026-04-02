@@ -167,7 +167,7 @@
             </div>
             <div>
               <div class="card-title">Publish New Dashboard</div>
-              <div class="card-subtitle">Upload an .html file and register it in the hub</div>
+              <div class="card-subtitle">Upload a dashboard package (.html + .config.json) and register it in the hub</div>
             </div>
           </div>
         </div>
@@ -185,23 +185,47 @@
 
           <form id="publish-form" novalidate>
 
-            <div class="form-group">
-              <label>
-                Dashboard File <span class="required">*</span>
-                <span class="hint">— .html only</span>
-              </label>
-              <div class="file-drop-zone" id="file-drop-zone">
-                <input type="file" id="input-file" accept=".html" aria-label="Select dashboard HTML file">
-                <div class="file-drop-icon" id="file-drop-icon">
-                  <svg width="32" height="32" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    <path d="M14 2v6h6M12 12v6M9 15l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+            <div class="form-row">
+
+              <div class="form-group" style="margin-bottom:0">
+                <label>
+                  Dashboard HTML <span class="required">*</span>
+                  <span class="hint">— dashboard.html</span>
+                </label>
+                <div class="file-drop-zone" id="file-drop-zone">
+                  <input type="file" id="input-file" accept=".html" aria-label="Select dashboard HTML file">
+                  <div class="file-drop-icon" id="file-drop-icon">
+                    <svg width="32" height="32" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                      <path d="M14 2v6h6M12 12v6M9 15l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                  <div class="file-drop-label" id="file-drop-label">Click to select or drag &amp; drop</div>
+                  <div class="file-drop-hint" id="file-drop-hint">Accepts .html files</div>
                 </div>
-                <div class="file-drop-label" id="file-drop-label">Click to select or drag &amp; drop</div>
-                <div class="file-drop-hint" id="file-drop-hint">Accepts .html files</div>
               </div>
+
+              <div class="form-group" style="margin-bottom:0">
+                <label>
+                  Config JSON <span class="required">*</span>
+                  <span class="hint">— dashboard.config.json</span>
+                </label>
+                <div class="file-drop-zone" id="config-drop-zone">
+                  <input type="file" id="input-config-file" accept=".json" aria-label="Select dashboard config JSON file">
+                  <div class="file-drop-icon" id="config-drop-icon">
+                    <svg width="32" height="32" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                      <path d="M14 2v6h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                      <path d="M10 13h4M10 17h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                  </div>
+                  <div class="file-drop-label" id="config-drop-label">Click to select or drag &amp; drop</div>
+                  <div class="file-drop-hint" id="config-drop-hint">Accepts .json files</div>
+                </div>
+              </div>
+
             </div>
+            <p class="form-hint" style="margin-top:6px">Both files are required. The package will be rejected if either is missing or invalid.</p>
 
             <hr class="form-divider">
 

@@ -191,16 +191,24 @@ module.exports = async function (context, req) {
     return;
   }
 
+  const host = account ? `${account}.blob.core.windows.net` : null;
+
   // Load stored config when dashboardId provided but no inline queries
-  if (dashboardId && account && sasToken && (!queries || !queries.length)) {
-    const host      = `${account}.blob.core.windows.net`;
-    const configRes = await blobGet(host, `/${CONTAINER}/${dashboardId}/config.json?${sasToken}`);
+  let isNewSchema = false;
+  if (dashboardId && host && sasToken && (!queries || !queries.length)) {
+    const configRes = await blobGetWithFallback(host,
+      `/${CONTAINER}/${dashboardId}/dashboard.config.json?${sasToken}`,
+      `/${CONTAINER}/${dashboardId}/config.json?${sasToken}`);
     if (configRes.statusCode === 200) {
       try {
         const cfg = JSON.parse(configRes.body);
         queries = cfg.queries || [];
+        // New schema queries have inline DAX text and use queryId (not id/queryName)
+        isNewSchema = queries.length > 0 && Boolean(queries[0].text);
       } catch { /* use inline queries */ }
     }
+  } else if (queries && queries.length && queries[0].text) {
+    isNewSchema = true;
   }
 
   if (!queries || !queries.length) {
@@ -211,6 +219,37 @@ module.exports = async function (context, req) {
     return;
   }
 
+  // ── Guardrail: max 10 queries (Feature 13) ─────────────────────────────
+  if (queries.length > 10) {
+    context.res = {
+      status: 400, headers: CORS,
+      body: { error: `Query limit exceeded: dashboard defines ${queries.length} queries (max 10).` },
+    };
+    return;
+  }
+
+  // ── Guardrail: 60-second min refresh interval (Feature 9) ──────────────
+  if (dashboardId && host && sasToken) {
+    const metaRes = await blobGetWithFallback(host,
+      `/${CONTAINER}/${dashboardId}/dashboard.metadata.json?${sasToken}`,
+      `/${CONTAINER}/${dashboardId}/metadata.json?${sasToken}`);
+    if (metaRes.statusCode === 200) {
+      try {
+        const meta = JSON.parse(metaRes.body);
+        if (meta.lastRefreshUtc) {
+          const elapsed = Date.now() - new Date(meta.lastRefreshUtc).getTime();
+          if (elapsed < 60_000) {
+            context.res = {
+              status: 429, headers: { ...CORS, 'Retry-After': '60' },
+              body: { error: 'Refresh rate limit: please wait at least 60 seconds between refreshes.' },
+            };
+            return;
+          }
+        }
+      } catch { /* non-fatal — proceed */ }
+    }
+  }
+
   const startTime = Date.now();
 
   try {
@@ -219,6 +258,34 @@ module.exports = async function (context, req) {
     const results    = {};
 
     for (const q of queries) {
+
+      // ── New-schema query: inline DAX text ──────────────────────────────
+      if (q.text) {
+        const queryKey = q.queryId || q.id;
+        const wsId     = q.workspaceId || DEFAULT_WORKSPACE;
+        const dsId     = q.datasetId   || DEFAULT_DATASET;
+        const timeout  = (q.timeoutSeconds ?? 30) * 1000;
+        try {
+          const pbiRes = await pbiPost(token,
+            `/v1.0/myorg/groups/${wsId}/datasets/${dsId}/executeQueries`,
+            { queries: [{ query: q.text }], serializerSettings: { includeNulls: true } },
+            timeout
+          );
+          if (pbiRes.status === 200) {
+            results[queryKey] = normalizeToColumnar(pbiRes.body);
+          } else {
+            const msg = pbiRes.body?.error?.pbi?.error?.details?.[0]?.detail?.value
+                     ?? pbiRes.body?.error?.message
+                     ?? `Power BI HTTP ${pbiRes.status}`;
+            results[queryKey] = { error: msg, columns: [], rows: [] };
+          }
+        } catch (qErr) {
+          results[queryKey] = { error: qErr.message, columns: [], rows: [] };
+        }
+        continue;
+      }
+
+      // ── Legacy query: NAMED_QUERIES lookup ─────────────────────────────
       const builder = NAMED_QUERIES[q.queryName];
       if (!builder) {
         results[q.id] = { error: `Unknown queryName: "${q.queryName}"`, rows: [], columns: [], count: 0 };
@@ -258,17 +325,18 @@ module.exports = async function (context, req) {
     const refreshedAt = new Date().toISOString();
     const hasError    = Object.values(results).some(r => r.error);
 
-    // Persist refresh metadata
-    if (dashboardId && account && sasToken) {
+    // Persist refresh metadata — use new path for new-schema, legacy path for old
+    if (dashboardId && host && sasToken) {
       const meta = {
-        lastRefreshUtc:       refreshedAt,
-        lastRefreshStatus:    hasError ? 'partial' : 'success',
+        lastRefreshUtc:        refreshedAt,
+        lastRefreshStatus:     hasError ? 'partial' : 'success',
         lastRefreshDurationMs: durationMs,
       };
-      const host = `${account}.blob.core.windows.net`;
+      const metaPath = isNewSchema
+        ? `/${CONTAINER}/${dashboardId}/dashboard.metadata.json?${sasToken}`
+        : `/${CONTAINER}/${dashboardId}/metadata.json?${sasToken}`;
       await blobPut(
-        host,
-        `/${CONTAINER}/${dashboardId}/metadata.json?${sasToken}`,
+        host, metaPath,
         Buffer.from(JSON.stringify(meta, null, 2), 'utf-8'),
         'application/json'
       ).catch(() => { /* non-fatal */ });
@@ -281,17 +349,17 @@ module.exports = async function (context, req) {
 
   } catch (err) {
     const durationMs = Date.now() - startTime;
-    if (dashboardId && account && sasToken) {
-      const host = `${account}.blob.core.windows.net`;
+    if (dashboardId && host && sasToken) {
       const meta = {
-        lastRefreshUtc:       new Date().toISOString(),
-        lastRefreshStatus:    'error',
+        lastRefreshUtc:        new Date().toISOString(),
+        lastRefreshStatus:     'error',
         lastRefreshDurationMs: durationMs,
-        lastRefreshError:     err.message,
+        lastRefreshError:      err.message,
       };
-      await blobPut(
-        host,
-        `/${CONTAINER}/${dashboardId}/metadata.json?${sasToken}`,
+      const metaPath = isNewSchema
+        ? `/${CONTAINER}/${dashboardId}/dashboard.metadata.json?${sasToken}`
+        : `/${CONTAINER}/${dashboardId}/metadata.json?${sasToken}`;
+      await blobPut(host, metaPath,
         Buffer.from(JSON.stringify(meta, null, 2), 'utf-8'),
         'application/json'
       ).catch(() => {});
@@ -337,6 +405,25 @@ function cleanRow(row) {
     out[m ? m[1] : key] = val;
   }
   return out;
+}
+
+// Convert Power BI executeQueries response to columnar format { columns, rows }
+// as required by the Feature 8 runtime messaging standard.
+function normalizeToColumnar(pbiBody) {
+  const table   = pbiBody?.results?.[0]?.tables?.[0];
+  if (!table) return { columns: [], rows: [] };
+  const columns = (table.columns ?? []).map(c => {
+    const m = c.name.match(/\[([^\]]+)\]$/);
+    return m ? m[1] : c.name;
+  });
+  const rows = (table.rows ?? []).map(r =>
+    columns.map((col, i) => {
+      // Power BI returns rows as objects keyed by raw column name
+      const rawKey = (table.columns ?? [])[i]?.name ?? col;
+      return r[rawKey] ?? null;
+    })
+  );
+  return { columns, rows };
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────
@@ -396,6 +483,15 @@ function blobGet(host, path) {
     req.on('error', reject);
     req.end();
   });
+}
+
+// Try primaryPath first; if 404, try fallbackPath.
+async function blobGetWithFallback(host, primaryPath, fallbackPath) {
+  const primary = await blobGet(host, primaryPath);
+  if (primary.statusCode === 404 && fallbackPath) {
+    return blobGet(host, fallbackPath);
+  }
+  return primary;
 }
 
 function blobPut(host, path, buffer, contentType) {

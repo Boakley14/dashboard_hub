@@ -26,6 +26,14 @@ applyTheme();
 applyNavColor();
 applyNavTextColor();
 
+// Send a typed postMessage to the dashboard iframe (Feature 8).
+// Spec: do NOT rely on direct iframe JS access — always use postMessage.
+function sendToIframe(type, payload) {
+  const iframe = document.getElementById('dashboard-iframe');
+  if (!iframe?.contentWindow) return;
+  iframe.contentWindow.postMessage({ type, payload }, '*');
+}
+
 async function init() {
   const id = getParam('id');
 
@@ -84,19 +92,35 @@ async function init() {
     });
   }
 
-  // ── Live data refresh (Feature 3 — centralized hub execution) ──────
+  // ── Live data refresh (Features 3, 8, 9 — centralized hub execution) ─
   const hasDataConn = Boolean(entry.dataConnection || entry.datasetId);
   if (hasDataConn) {
     const refreshBtn = document.getElementById('btn-refresh-data');
     const refreshTs  = document.getElementById('refresh-timestamp');
-    const iframe     = document.getElementById('dashboard-iframe');
 
     if (refreshBtn) {
       refreshBtn.hidden = false;
 
+      // Per-session cooldown — 60 seconds between refreshes (Feature 9)
+      let lastRefreshTime = 0;
+
       refreshBtn.addEventListener('click', async () => {
+        // ── 60-second cooldown check ────────────────────────────────
+        const now = Date.now();
+        if (now - lastRefreshTime < 60_000) {
+          if (refreshTs) {
+            refreshTs.textContent = 'Please wait before refreshing again.';
+            refreshTs.hidden = false;
+          }
+          return;
+        }
+        lastRefreshTime = now;
+
         refreshBtn.disabled    = true;
         refreshBtn.textContent = '↻ Refreshing…';
+
+        // Notify dashboard iframe that refresh is starting
+        sendToIframe('dashboardHub.showLoading');
 
         const startTime = Date.now();
 
@@ -123,26 +147,18 @@ async function init() {
 
           const { results, refreshedAt } = data;
 
-          // ── Step 2: Inject results into iframe (Feature 10) ─────────
-          const iframeWin = iframe?.contentWindow;
-          if (iframeWin) {
-            // Try direct JS call first (works same-origin)
-            try {
-              if (typeof iframeWin.dashboardHub?.updateData === 'function') {
-                iframeWin.dashboardHub.updateData(results);
-              } else {
-                // Fall back to postMessage (works cross-origin)
-                iframeWin.postMessage({ type: 'hub-data-inject', results }, '*');
-              }
-            } catch {
-              iframeWin.postMessage({ type: 'hub-data-inject', results }, '*');
-            }
-          }
+          // ── Step 2: Inject results into iframe via postMessage (Feature 8)
+          // Spec: do NOT rely on direct iframe JS access — always use postMessage.
+          sendToIframe('dashboardHub.refreshData', {
+            dashboardId:  entry.id,
+            refreshedUtc: refreshedAt,
+            queries:      results,
+          });
 
           // ── Step 3: Update info panel refresh status ─────────────────
           updateRefreshStatus({
-            lastRefreshUtc:       refreshedAt,
-            lastRefreshStatus:    Object.values(results).some(r => r.error) ? 'partial' : 'success',
+            lastRefreshUtc:        refreshedAt,
+            lastRefreshStatus:     Object.values(results).some(r => r.error) ? 'partial' : 'success',
             lastRefreshDurationMs: Date.now() - startTime,
           });
 
@@ -153,9 +169,12 @@ async function init() {
           }
 
         } catch (err) {
+          // Notify iframe of error state
+          sendToIframe('dashboardHub.showError', { message: err.message });
+
           updateRefreshStatus({
-            lastRefreshUtc:       new Date().toISOString(),
-            lastRefreshStatus:    'error',
+            lastRefreshUtc:        new Date().toISOString(),
+            lastRefreshStatus:     'error',
             lastRefreshDurationMs: Date.now() - startTime,
           });
           if (refreshTs) {
@@ -176,6 +195,7 @@ async function init() {
 
     // Listen for iframe self-refresh signals (dashboards that fetch their own data)
     window.addEventListener('message', event => {
+      const refreshTs = document.getElementById('refresh-timestamp');
       if (event.data?.type === 'pbi-refresh-done') {
         if (refreshTs) {
           const ts = event.data.refreshedAt
