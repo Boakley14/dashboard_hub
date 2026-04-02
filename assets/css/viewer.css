@@ -162,13 +162,80 @@ html, body {
   flex-shrink: 0;
 }
 
+.viewer-connection-banner {
+  position: fixed;
+  top: var(--viewer-bar-height);
+  left: 0;
+  right: 0;
+  z-index: 90;
+  padding: 10px 20px;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+
+.viewer-connection-banner__inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.viewer-connection-banner--live {
+  background: #eef9f1;
+  color: #143720;
+}
+
+.viewer-connection-banner--static {
+  background: #fff4e5;
+  color: #6c4300;
+}
+
+.viewer-connection-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 110px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.viewer-connection-banner--live .viewer-connection-badge {
+  background: #d9f1df;
+  color: #0f5a24;
+}
+
+.viewer-connection-banner--static .viewer-connection-badge {
+  background: #ffe3bf;
+  color: #8a5200;
+}
+
+.viewer-connection-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viewer-connection-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.viewer-connection-text {
+  font-size: 12px;
+  opacity: 0.92;
+}
+
 /* ---- Dashboard iframe ------------------------------------- */
 .viewer-frame {
   position: fixed;
-  top: var(--viewer-bar-height);
+  top: calc(var(--viewer-bar-height) + 58px);
   left: 0; right: 0; bottom: 0;
   width: 100%;
-  height: calc(100vh - var(--viewer-bar-height));
+  height: calc(100vh - var(--viewer-bar-height) - 58px);
   border: none;
   background: var(--white);
   display: block;
@@ -177,7 +244,7 @@ html, body {
 /* ---- Loading Spinner -------------------------------------- */
 .viewer-spinner {
   position: fixed;
-  top: var(--viewer-bar-height);
+  top: calc(var(--viewer-bar-height) + 58px);
   left: 0; right: 0; bottom: 0;
   display: flex;
   align-items: center;
@@ -198,7 +265,7 @@ html, body {
 /* ---- Iframe Fallback UI ----------------------------------- */
 .iframe-fallback {
   position: fixed;
-  top: var(--viewer-bar-height);
+  top: calc(var(--viewer-bar-height) + 58px);
   left: 0; right: 0; bottom: 0;
   display: flex;
   align-items: center;
@@ -245,7 +312,7 @@ html, body {
 /* ---- Error state (dashboard not found) -------------------- */
 .viewer-error {
   position: fixed;
-  top: var(--viewer-bar-height);
+  top: calc(var(--viewer-bar-height) + 58px);
   left: 0; right: 0; bottom: 0;
   display: flex;
   align-items: center;
@@ -271,4 +338,13 @@ html, body {
   .viewer-bar { padding: 0 var(--space-3); gap: var(--space-2); }
   .viewer-bc-category, .viewer-bc-sep { display: none; }
   .viewer-divider { display: none; }
+  .viewer-connection-banner { padding: 8px 12px; }
+  .viewer-connection-banner__inner { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .viewer-frame,
+  .viewer-spinner,
+  .iframe-fallback,
+  .viewer-error {
+    top: calc(var(--viewer-bar-height) + 82px);
+    height: calc(100vh - var(--viewer-bar-height) - 82px);
+  }
 }

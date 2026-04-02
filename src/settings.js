@@ -254,6 +254,12 @@ function setSelectedConfigFile(file) {
 }
 
 inputTitle.addEventListener('input', () => { inputId.value = slugify(inputTitle.value); });
+function publishModeSummary() {
+  if (selectedConfigFile) {
+    return 'Mode: Live Data report. Uploading a config file marks this dashboard as connected and refreshable.';
+  }
+  return 'Mode: Static Snapshot. This dashboard will publish as embedded HTML without a live data connection.';
+}
 
 async function loadCategorySuggestions() {
   try {
@@ -302,6 +308,8 @@ $('publish-form').addEventListener('submit', async e => {
     return;
   }
 
+  showAlert('success', `<strong>${selectedConfigFile ? 'Live Data upload' : 'Static Snapshot upload'}</strong><br>${publishModeSummary()}`);
+
   btnPublish.disabled = true;
   btnReset.disabled   = true;
   showProgress();
@@ -344,11 +352,12 @@ $('publish-form').addEventListener('submit', async e => {
 
 // ---- Connection status helpers -----------------------------
 function _connectionStatus(d) {
-  if (d.dataConnection?.sourceId)  return { label: 'Connected', cls: 'ds-status-connected', dot: '*' };
-  if (d.dataConnection)            return { label: 'Inline', cls: 'ds-status-inline', dot: '*' };
-  if (d.queryCount || d.datasetId) return { label: 'Hub-managed', cls: 'ds-status-inline', dot: '*' };
-  if (d.powerBiSources?.length)    return { label: 'Embedded', cls: 'ds-status-embedded', dot: '*' };
-  return { label: 'No data', cls: 'ds-status-none', dot: '-' };
+  if (d.packageType === 'html-only') return { label: 'Static Snapshot', cls: 'ds-status-none', dot: '-' };
+  if (d.dataConnection?.sourceId)    return { label: 'Live Data', cls: 'ds-status-connected', dot: '*' };
+  if (d.dataConnection)              return { label: 'Live Data', cls: 'ds-status-inline', dot: '*' };
+  if (d.queryCount || d.datasetId)   return { label: 'Live Data', cls: 'ds-status-inline', dot: '*' };
+  if (d.powerBiSources?.length)      return { label: 'Live Data', cls: 'ds-status-embedded', dot: '*' };
+  return { label: 'Static Snapshot', cls: 'ds-status-none', dot: '-' };
 }
 
 // ---- Manage dashboards -------------------------------------
@@ -688,5 +697,6 @@ inputDate.value = todayIso();
 loadCategorySuggestions();
 loadManageList();
 initDataSources();
+
 
 

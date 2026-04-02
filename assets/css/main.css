@@ -364,6 +364,14 @@ body.layout-sidebar .hub-title-bar { display: none; }
   line-height: 1.6;
 }
 
+.card-live-badge--live {
+  background: rgba(5, 76, 32, 0.5);
+}
+
+.card-live-badge--static {
+  background: rgba(120, 74, 0, 0.45);
+}
+
 
 .card-title {
   font-size: var(--font-size-base);
@@ -751,6 +759,14 @@ body.layout-sidebar .hub-title-bar { display: none; }
   gap: var(--space-2);
   font-size: var(--font-size-xs);
   flex-wrap: wrap;
+}
+.conn-status--connected .conn-label,
+.conn-status--inline .conn-label,
+.conn-status--embedded .conn-label {
+  color: #0f5a24;
+}
+.conn-status--none .conn-label {
+  color: #8a5200;
 }
 .conn-dot   { font-size: 12px; flex-shrink: 0; }
 .conn-label { font-weight: var(--font-weight-medium); color: var(--color-text-heading); }

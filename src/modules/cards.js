@@ -38,6 +38,14 @@ function formatDate(iso) {
   } catch { return iso; }
 }
 
+function connectionBadge(entry) {
+  const isLive = Boolean(entry.packageType === 'hub-managed' || entry.queryCount || entry.datasetId || entry.dataConnection);
+  if (isLive) {
+    return `<span class="card-live-badge card-live-badge--live" title="Connected to a live data source">Live Data</span>`;
+  }
+  return `<span class="card-live-badge card-live-badge--static" title="Static HTML snapshot without a live data connection">Static Snapshot</span>`;
+}
+
 /**
  * Create a single dashboard card as a DOM <article> element.
  * @param {Object}   entry     - Dashboard registry entry
@@ -68,9 +76,7 @@ export function createCard(entry, opts = {}) {
   const editBtnHtml = onEdit
     ? `<button class="card-edit-btn" type="button" title="Edit card" aria-label="Edit ${entry.title}">‚ãÆ</button>`
     : '';
-  const liveBadgeHtml = entry.dataConnection
-    ? `<span class="card-live-badge" title="Live data connection">‚óè Live</span>`
-    : '';
+  const liveBadgeHtml = connectionBadge(entry);
   // isFavoriteFn can be a function (id) => bool or a plain boolean (legacy)
   const { onFavorite } = opts;
   const isFavRaw  = opts.isFavoriteFn ? opts.isFavoriteFn(entry.id) : (opts.isFavorite ?? false);
@@ -266,31 +272,39 @@ function _showTooltip(triggerEl, text) {
 
 // ---- Connection info helper --------------------------------
 function _connectionInfoHtml(entry) {
+  if (entry.packageType === 'html-only' || (!entry.queryCount && !entry.datasetId && !entry.dataConnection && !entry.powerBiSources?.length)) {
+    return `<div class="conn-status conn-status--none">
+      <span class="conn-dot">ï</span>
+      <span class="conn-label">Static Snapshot</span>
+      <span class="conn-detail">This dashboard is not connected to a live data source.</span>
+    </div>`;
+  }
   if (entry.dataConnection?.sourceId) {
     return `<div class="conn-status conn-status--connected">
-      <span class="conn-dot">üü¢</span>
-      <span class="conn-label">Connected</span>
+      <span class="conn-dot">ï</span>
+      <span class="conn-label">Live Data</span>
       <span class="conn-detail">Source: <code>${entry.dataConnection.sourceId}</code></span>
     </div>`;
   }
   if (entry.dataConnection) {
     const ds = entry.dataConnection.datasetId || '';
     return `<div class="conn-status conn-status--inline">
-      <span class="conn-dot">üü°</span>
-      <span class="conn-label">Inline connection</span>
-      ${ds ? `<span class="conn-detail">Dataset: <code>${ds.slice(0, 8)}‚Ä¶</code></span>` : ''}
+      <span class="conn-dot">ï</span>
+      <span class="conn-label">Live Data</span>
+      ${ds ? `<span class="conn-detail">Dataset: <code>${ds.slice(0, 8)}Ö</code></span>` : ''}
     </div>`;
   }
-  if (entry.powerBiSources?.length) {
+  if (entry.packageType === 'hub-managed' || entry.queryCount || entry.powerBiSources?.length) {
     return `<div class="conn-status conn-status--embedded">
-      <span class="conn-dot">üîµ</span>
-      <span class="conn-label">Embedded Power BI</span>
-      <span class="conn-detail">${entry.powerBiSources.length} source${entry.powerBiSources.length !== 1 ? 's' : ''}</span>
+      <span class="conn-dot">ï</span>
+      <span class="conn-label">Live Data</span>
+      <span class="conn-detail">${entry.queryCount ? `${entry.queryCount} configured quer${entry.queryCount === 1 ? 'y' : 'ies'}` : `${entry.powerBiSources?.length || 0} source${(entry.powerBiSources?.length || 0) !== 1 ? 's' : ''}`}</span>
     </div>`;
   }
   return `<div class="conn-status conn-status--none">
-    <span class="conn-dot">‚ö´</span>
-    <span class="conn-label">No data connection</span>
+    <span class="conn-dot">ï</span>
+    <span class="conn-label">Static Snapshot</span>
+    <span class="conn-detail">This dashboard is not connected to a live data source.</span>
   </div>`;
 }
 
@@ -524,3 +538,6 @@ function _openCategoryModal(category, currentAccent, onEdit) {
     }
   });
 }
+
+
+

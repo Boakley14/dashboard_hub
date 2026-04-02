@@ -31,6 +31,53 @@ function sendToIframe(type, payload) {
   iframe.contentWindow.postMessage({ type, payload }, '*');
 }
 
+function connectionPresentation(entry, storedConfig) {
+  const isLive = Boolean(
+    storedConfig?.queries?.length ||
+    entry.queryCount ||
+    entry.datasetId ||
+    entry.packageType === 'hub-managed'
+  );
+  if (isLive) {
+    return {
+      mode: 'live',
+      badge: 'Live Data',
+      title: 'This dashboard is connected to a live data source.',
+      text: 'Use Refresh Data to pull the latest available results from the configured dataset.',
+    };
+  }
+  return {
+    mode: 'static',
+    badge: 'Static Snapshot',
+    title: 'This dashboard is not hooked up to a live data source.',
+    text: 'It reflects the data embedded in the uploaded HTML at publish time.',
+  };
+}
+
+function renderConnectionBanner(presentation, entry) {
+  const banner = document.getElementById('viewer-connection-banner');
+  const badge = document.getElementById('viewer-connection-badge');
+  const title = document.getElementById('viewer-connection-title');
+  const text = document.getElementById('viewer-connection-text');
+  if (!banner || !badge || !title || !text) return;
+
+  banner.classList.remove('viewer-connection-banner--live', 'viewer-connection-banner--static');
+  banner.classList.add(presentation.mode === 'live' ? 'viewer-connection-banner--live' : 'viewer-connection-banner--static');
+  badge.textContent = presentation.badge;
+  title.textContent = presentation.title;
+
+  if (presentation.mode === 'live' && entry.lastRefreshUtc) {
+    text.textContent = `${presentation.text} Last refresh: ${new Date(entry.lastRefreshUtc).toLocaleString()}.`;
+  } else if (presentation.mode === 'static' && (entry.uploadedUtc || entry.lastModifiedUtc || entry.createdUtc)) {
+    const stamp = entry.uploadedUtc || entry.lastModifiedUtc || entry.createdUtc;
+    text.textContent = `${presentation.text} Published: ${new Date(stamp).toLocaleString()}.`;
+  } else {
+    text.textContent = presentation.text;
+  }
+
+  banner.hidden = false;
+}
+
 function updateDiagnostics(patch) {
   window.__dashboardHubDiagnostics = {
     ...(window.__dashboardHubDiagnostics || {}),
@@ -212,10 +259,12 @@ async function init() {
 
   const storedConfig = await loadStoredDashboardConfig(entry.id);
   const dataConnection = buildDataConnection(entry, storedConfig);
+  const connectionState = connectionPresentation(entry, storedConfig);
   const minRefreshIntervalMs = Math.max(
     Number(storedConfig?.refresh?.minRefreshIntervalSeconds || 60) * 1000,
     0
   );
+  renderConnectionBanner(connectionState, entry);
 
   initInfoPanel(entry);
   const infoBtn = document.getElementById('btn-info');
@@ -278,6 +327,17 @@ async function init() {
       refreshTs.textContent = `Updated ${ts}`;
       refreshTs.hidden = false;
     });
+  } else {
+    const refreshBtn = document.getElementById('btn-refresh-data');
+    const refreshTs = document.getElementById('refresh-timestamp');
+    if (refreshBtn) refreshBtn.hidden = true;
+    if (refreshTs) {
+      const stamp = entry.uploadedUtc || entry.lastModifiedUtc || entry.createdUtc;
+      if (stamp) {
+        refreshTs.textContent = `Snapshot published ${new Date(stamp).toLocaleString()}`;
+        refreshTs.hidden = false;
+      }
+    }
   }
 }
 
