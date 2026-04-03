@@ -1,5 +1,5 @@
-/* ============================================================
-   main.css — Hub home page (index.html) layout and components
+﻿/* ============================================================
+   main.css â€” Hub home page (index.html) layout and components
    Imports brand tokens; never uses hardcoded hex values.
    ============================================================ */
 
@@ -233,7 +233,7 @@ body.layout-sidebar .hub-title-bar { display: none; }
   border-color: var(--color-primary);
 }
 
-/* Thin accent strip at top — colored by category */
+/* Thin accent strip at top â€” colored by category */
 .card-accent {
   position: relative;
   height: 3px;
@@ -296,7 +296,7 @@ body.layout-sidebar .hub-title-bar { display: none; }
   flex-shrink: 0;
 }
 
-/* ── Favorite star button ──────────────────────────────────── */
+/* â”€â”€ Favorite star button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .card-fav-btn {
   background: none;
   border: none;
@@ -323,7 +323,7 @@ body.layout-sidebar .hub-title-bar { display: none; }
   color: var(--color-text-muted);
 }
 
-/* ── Favorites folder card ─────────────────────────────────── */
+/* â”€â”€ Favorites folder card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .card-accent--favorites {
   background: linear-gradient(90deg, var(--color-primary) 0%, #f14f4d 100%);
 }
@@ -343,33 +343,6 @@ body.layout-sidebar .hub-title-bar { display: none; }
   color: #f5c518;
   font-size: 1.1em;
   line-height: 1;
-}
-
-/* Live data connection badge — shown on accent strip */
-.card-live-badge {
-  position: absolute;
-  right: var(--space-3);
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 9px;
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.9);
-  background: rgba(0,0,0,0.35);
-  border-radius: 3px;
-  padding: 1px 5px;
-  white-space: nowrap;
-  pointer-events: none;
-  line-height: 1.6;
-}
-
-.card-live-badge--live {
-  background: rgba(5, 76, 32, 0.5);
-}
-
-.card-live-badge--static {
-  background: rgba(120, 74, 0, 0.45);
 }
 
 
@@ -431,17 +404,12 @@ body.layout-sidebar .hub-title-bar { display: none; }
   color: var(--color-text-muted);
   padding: 0 var(--space-1);
   border-radius: var(--border-radius-sm);
-  opacity: 0;
+  opacity: 1;
   transition: opacity var(--transition-fast), color var(--transition-fast),
               background var(--transition-fast);
   flex-shrink: 0;
 }
 
-.dashboard-card:hover .card-edit-btn,
-.dashboard-card:focus-within .card-edit-btn,
-.dashboard-card.card--editing .card-edit-btn {
-  opacity: 1;
-}
 
 .card-edit-btn:hover {
   color: var(--color-text-heading);
@@ -716,7 +684,7 @@ body.layout-sidebar .hub-title-bar { display: none; }
   padding: var(--space-2) var(--space-3);
   border-radius: var(--border-radius-md);
   box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-  pointer-events: none;   /* never intercepts mouse — won't trigger mouseleave */
+  pointer-events: none;   /* never intercepts mouse â€” won't trigger mouseleave */
   white-space: normal;
   word-break: break-word;
 }
@@ -752,7 +720,7 @@ body.layout-sidebar .hub-title-bar { display: none; }
   color: var(--color-text-heading);
 }
 
-/* ---- Dashboard settings modal — data connection section --- */
+/* ---- Dashboard settings modal â€” data connection section --- */
 .conn-status {
   display: flex;
   align-items: center;
@@ -967,7 +935,7 @@ body.layout-sidebar .inline-viewer { display: flex; }
 /* Hide text labels when collapsed */
 body.layout-sidebar .sidebar--collapsed .sidebar-title,
 body.layout-sidebar .sidebar--collapsed .sidebar-item-label {
-  opacity: 0;
+  opacity: 1;
   pointer-events: none;
 }
 
@@ -1110,10 +1078,10 @@ body.layout-sidebar .sidebar--collapsed .sidebar-collapse-btn svg {
 
 body.layout-sidebar .sidebar--collapsed .sidebar-item-count,
 body.layout-sidebar .sidebar--collapsed .sidebar-chevron {
-  opacity: 0;
+  opacity: 1;
 }
 
-/* Dashboard items container — hidden until category is expanded */
+/* Dashboard items container â€” hidden until category is expanded */
 /* position:relative required for the vertical guide line pseudo-element */
 .category-group-items {
   display: none;
@@ -1129,7 +1097,7 @@ body.layout-sidebar .sidebar--collapsed .sidebar-chevron {
 .category-group-items::before {
   content: '';
   position: absolute;
-  left: calc(var(--space-3) + 14px + var(--space-3));   /* 38px — category label x-position */
+  left: calc(var(--space-3) + 14px + var(--space-3));   /* 38px â€” category label x-position */
   top: 0;
   bottom: 0;
   width: 1px;
@@ -1184,7 +1152,7 @@ body.layout-sidebar .sidebar--collapsed .sidebar-chevron {
   flex-shrink: 0;
 }
 
-/* Breadcrumb: CATEGORY → Dashboard Title */
+/* Breadcrumb: CATEGORY â†’ Dashboard Title */
 .inline-viewer-breadcrumb {
   display: flex;
   align-items: center;
@@ -1321,10 +1289,11 @@ body.layout-sidebar .nav-layout-btn:hover {
   .card-modal-overlay { padding: var(--space-3); align-items: flex-end; }
   .card-modal, .card-modal--wide { max-width: 100%; border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0; }
 
-  /* Always hide sidebar on mobile — not usable on small screens */
+  /* Always hide sidebar on mobile â€” not usable on small screens */
   body.layout-sidebar .sidebar { display: none; }
   /* Always show card grid and breadcrumb on mobile */
   body.layout-sidebar .card-grid   { display: grid !important; }
   body.layout-sidebar .breadcrumb  { display: flex !important; }
   body.layout-sidebar .inline-viewer { display: none !important; }
 }
+

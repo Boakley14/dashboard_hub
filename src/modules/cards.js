@@ -1,4 +1,4 @@
-/**
+﻿/**
  * cards.js
  * Responsibility: Create and render dashboard card DOM nodes.
  * Reads from the registry; writes to the card grid element.
@@ -38,14 +38,6 @@ function formatDate(iso) {
   } catch { return iso; }
 }
 
-function connectionBadge(entry) {
-  const isLive = Boolean(entry.packageType === 'hub-managed' || entry.queryCount || entry.datasetId || entry.dataConnection);
-  if (isLive) {
-    return `<span class="card-live-badge card-live-badge--live" title="Connected to a live data source">Live Data</span>`;
-  }
-  return `<span class="card-live-badge card-live-badge--static" title="Static HTML snapshot without a live data connection">Static Snapshot</span>`;
-}
-
 /**
  * Create a single dashboard card as a DOM <article> element.
  * @param {Object}   entry     - Dashboard registry entry
@@ -74,9 +66,8 @@ export function createCard(entry, opts = {}) {
     .join('');
 
   const editBtnHtml = onEdit
-    ? `<button class="card-edit-btn" type="button" title="Edit card" aria-label="Edit ${entry.title}">⋮</button>`
+    ? `<button class="card-edit-btn" type="button" title="Edit card" aria-label="Edit ${entry.title}">â‹®</button>`
     : '';
-  const liveBadgeHtml = connectionBadge(entry);
   // isFavoriteFn can be a function (id) => bool or a plain boolean (legacy)
   const { onFavorite } = opts;
   const isFavRaw  = opts.isFavoriteFn ? opts.isFavoriteFn(entry.id) : (opts.isFavorite ?? false);
@@ -86,21 +77,21 @@ export function createCard(entry, opts = {}) {
          title="${isFav ? 'Remove from favorites' : 'Add to favorites'}"
          aria-label="${isFav ? 'Remove from favorites' : 'Add to favorites'}"
          aria-pressed="${isFav}">
-         ${isFav ? '★' : '☆'}
+         ${isFav ? 'â˜…' : 'â˜†'}
        </button>`
     : '';
   const _desc       = (entry.description || '').trim();
   const infoBtnHtml = _desc
-    ? `<button class="card-info-btn" type="button" title="View description" aria-label="View description for ${entry.title}">ⓘ</button>`
+    ? `<button class="card-info-btn" type="button" title="View description" aria-label="View description for ${entry.title}">â“˜</button>`
     : '';
 
   article.innerHTML = `
-    <div class="${accentClass}"${accentStyle} aria-hidden="true">${liveBadgeHtml}</div>
+    <div class="${accentClass}"${accentStyle} aria-hidden="true"></div>
     <div class="card-body">
       <div class="card-header-row">
         <span class="card-category-badge">${entry.category || 'Uncategorized'}</span>
         <div class="card-header-actions">
-          ${entry.openInNewTab ? '<span class="card-newtab-badge" title="Opens in new tab">↗ New Tab</span>' : ''}
+          ${entry.openInNewTab ? '<span class="card-newtab-badge" title="Opens in new tab">â†— New Tab</span>' : ''}
           ${favBtnHtml}
           ${infoBtnHtml}
           ${editBtnHtml}
@@ -184,7 +175,7 @@ function _openModal({ title, subtitle, bodyHtml, onMount, wide = false }) {
           <span class="card-modal-title">${title}</span>
           ${subtitle ? `<span class="card-modal-subtitle">${subtitle}</span>` : ''}
         </div>
-        <button type="button" class="card-modal-close" aria-label="Close">✕</button>
+        <button type="button" class="card-modal-close" aria-label="Close">âœ•</button>
       </div>
       <div class="card-modal-body">${bodyHtml}</div>
     </div>
@@ -274,14 +265,14 @@ function _showTooltip(triggerEl, text) {
 function _connectionInfoHtml(entry) {
   if (entry.packageType === 'html-only' || (!entry.queryCount && !entry.datasetId && !entry.dataConnection && !entry.powerBiSources?.length)) {
     return `<div class="conn-status conn-status--none">
-      <span class="conn-dot">�</span>
+      <span class="conn-dot">•</span>
       <span class="conn-label">Static Snapshot</span>
       <span class="conn-detail">This dashboard is not connected to a live data source.</span>
     </div>`;
   }
   if (entry.dataConnection?.sourceId) {
     return `<div class="conn-status conn-status--connected">
-      <span class="conn-dot">�</span>
+      <span class="conn-dot">•</span>
       <span class="conn-label">Live Data</span>
       <span class="conn-detail">Source: <code>${entry.dataConnection.sourceId}</code></span>
     </div>`;
@@ -289,20 +280,20 @@ function _connectionInfoHtml(entry) {
   if (entry.dataConnection) {
     const ds = entry.dataConnection.datasetId || '';
     return `<div class="conn-status conn-status--inline">
-      <span class="conn-dot">�</span>
+      <span class="conn-dot">•</span>
       <span class="conn-label">Live Data</span>
-      ${ds ? `<span class="conn-detail">Dataset: <code>${ds.slice(0, 8)}�</code></span>` : ''}
+      ${ds ? `<span class="conn-detail">Dataset: <code>${ds.slice(0, 8)}…</code></span>` : ''}
     </div>`;
   }
   if (entry.packageType === 'hub-managed' || entry.queryCount || entry.powerBiSources?.length) {
     return `<div class="conn-status conn-status--embedded">
-      <span class="conn-dot">�</span>
+      <span class="conn-dot">•</span>
       <span class="conn-label">Live Data</span>
       <span class="conn-detail">${entry.queryCount ? `${entry.queryCount} configured quer${entry.queryCount === 1 ? 'y' : 'ies'}` : `${entry.powerBiSources?.length || 0} source${(entry.powerBiSources?.length || 0) !== 1 ? 's' : ''}`}</span>
     </div>`;
   }
   return `<div class="conn-status conn-status--none">
-    <span class="conn-dot">�</span>
+    <span class="conn-dot">•</span>
     <span class="conn-label">Static Snapshot</span>
     <span class="conn-detail">This dashboard is not connected to a live data source.</span>
   </div>`;
@@ -381,7 +372,7 @@ function _categoryHex(category) {
 
 /**
  * Public: open the dashboard settings modal for a given entry.
- * Called from nav.js (sidebar right-click) as well as card ⋮ button.
+ * Called from nav.js (sidebar right-click) as well as card â‹® button.
  */
 export function openDashboardSettingsModal(entry, categories, onEdit) {
   _openDashboardModal(entry, categories, onEdit);
@@ -405,7 +396,7 @@ function getCatAccent(category) {
 }
 
 /**
- * Render category "folder" cards — one card per category.
+ * Render category "folder" cards â€” one card per category.
  * Pass `favCount` > 0 to prepend a special Favorites folder card.
  */
 export function renderCategoryCards(categories, registry, onCategoryClick, onCategoryEdit, favCount = 0) {
@@ -424,11 +415,11 @@ export function renderCategoryCards(categories, registry, onCategoryClick, onCat
   });
 }
 
-/** Special "★ Favorites" folder card — always first in the grid. */
+/** Special "â˜… Favorites" folder card â€” always first in the grid. */
 function createFavoritesCategoryCard(count, onClick) {
   const article = document.createElement('article');
   article.className = 'dashboard-card category-card category-card--favorites';
-  article.dataset.category = '★ Favorites';
+  article.dataset.category = 'â˜… Favorites';
 
   article.innerHTML = `
     <div class="card-accent card-accent--favorites" aria-hidden="true"></div>
@@ -437,7 +428,7 @@ function createFavoritesCategoryCard(count, onClick) {
         <span class="card-category-badge card-category-badge--favorites">Favorites</span>
       </div>
       <h2 class="card-title card-title--favorites">
-        <span class="fav-folder-star" aria-hidden="true">★</span> Favorites
+        <span class="fav-folder-star" aria-hidden="true">â˜…</span> Favorites
       </h2>
       <p class="card-description">${count} saved dashboard${count !== 1 ? 's' : ''}</p>
     </div>
@@ -445,8 +436,8 @@ function createFavoritesCategoryCard(count, onClick) {
 
   article.setAttribute('tabindex', '0');
   article.setAttribute('role', 'button');
-  article.setAttribute('aria-label', `Favorites — ${count} saved dashboard${count !== 1 ? 's' : ''}`);
-  article.addEventListener('click', () => onClick('★ Favorites'));
+  article.setAttribute('aria-label', `Favorites â€” ${count} saved dashboard${count !== 1 ? 's' : ''}`);
+  article.addEventListener('click', () => onClick('â˜… Favorites'));
   article.addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); article.click(); }
   });
@@ -463,7 +454,7 @@ function createCategoryCard(category, count, onClick, onEdit) {
   const accentStyle = catAccent ? ` style="background:${catAccent}"` : '';
   const accentClass = catAccent ? 'card-accent' : `card-accent cat-${categoryClass(category)}`;
   const editBtnHtml = onEdit
-    ? `<button class="card-edit-btn" type="button" title="Edit card" aria-label="Edit ${category}">⋮</button>`
+    ? `<button class="card-edit-btn" type="button" title="Edit card" aria-label="Edit ${category}">â‹®</button>`
     : '';
 
   article.innerHTML = `
@@ -489,7 +480,7 @@ function createCategoryCard(category, count, onClick, onEdit) {
 
   article.setAttribute('tabindex', '0');
   article.setAttribute('role', 'button');
-  article.setAttribute('aria-label', `Browse ${category} — ${count} dashboard${count !== 1 ? 's' : ''}`);
+  article.setAttribute('aria-label', `Browse ${category} â€” ${count} dashboard${count !== 1 ? 's' : ''}`);
 
   article.addEventListener('click', e => {
     if (e.target.closest('.card-edit-btn')) return;
@@ -538,6 +529,7 @@ function _openCategoryModal(category, currentAccent, onEdit) {
     }
   });
 }
+
 
 
 

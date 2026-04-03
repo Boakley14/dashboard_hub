@@ -95,12 +95,26 @@
 
   <section id="viewer-connection-banner" class="viewer-connection-banner" hidden>
     <div class="viewer-connection-banner__inner">
-      <span id="viewer-connection-badge" class="viewer-connection-badge">Status</span>
+      <div class="viewer-connection-summary-row">
+        <span id="viewer-connection-badge" class="viewer-connection-badge">Status</span>
+        <div id="viewer-connection-summary" class="viewer-connection-summary"></div>
+      </div>
+      <button
+        id="viewer-connection-toggle"
+        class="viewer-connection-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="viewer-connection-details"
+      >
+        Details
+      </button>
+    </div>
+    <div id="viewer-connection-details" class="viewer-connection-details" hidden>
       <div class="viewer-connection-copy">
         <div id="viewer-connection-title" class="viewer-connection-title"></div>
         <div id="viewer-connection-text" class="viewer-connection-text"></div>
       </div>
-    </div>
+    </div>  
   </section>
 
   <!-- ====================================================

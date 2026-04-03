@@ -42,6 +42,7 @@ function connectionPresentation(entry, storedConfig) {
     return {
       mode: 'live',
       badge: 'Live Data',
+      summary: 'Live connection available.',
       title: 'This dashboard is connected to a live data source.',
       text: 'Use Refresh Data to pull the latest available results from the configured dataset.',
     };
@@ -49,21 +50,41 @@ function connectionPresentation(entry, storedConfig) {
   return {
     mode: 'static',
     badge: 'Static Snapshot',
+    summary: 'Embedded HTML snapshot.',
     title: 'This dashboard is not hooked up to a live data source.',
     text: 'It reflects the data embedded in the uploaded HTML at publish time.',
   };
 }
 
+function connectionBannerStorageKey(entry, presentation) {
+  return `dashboardHub.connectionBanner.${entry?.id || 'unknown'}.${presentation?.mode || 'default'}`;
+}
+
+function setConnectionBannerCollapsed(isCollapsed) {
+  const banner = document.getElementById('viewer-connection-banner');
+  const details = document.getElementById('viewer-connection-details');
+  const toggle = document.getElementById('viewer-connection-toggle');
+  if (!banner || !details || !toggle) return;
+
+  banner.classList.toggle('is-collapsed', isCollapsed);
+  details.hidden = isCollapsed;
+  toggle.setAttribute('aria-expanded', String(!isCollapsed));
+  toggle.textContent = isCollapsed ? 'Details' : 'Hide Details';
+}
+
 function renderConnectionBanner(presentation, entry) {
   const banner = document.getElementById('viewer-connection-banner');
   const badge = document.getElementById('viewer-connection-badge');
+  const summary = document.getElementById('viewer-connection-summary');
   const title = document.getElementById('viewer-connection-title');
   const text = document.getElementById('viewer-connection-text');
-  if (!banner || !badge || !title || !text) return;
+  const toggle = document.getElementById('viewer-connection-toggle');
+  if (!banner || !badge || !summary || !title || !text || !toggle) return;
 
   banner.classList.remove('viewer-connection-banner--live', 'viewer-connection-banner--static');
   banner.classList.add(presentation.mode === 'live' ? 'viewer-connection-banner--live' : 'viewer-connection-banner--static');
   badge.textContent = presentation.badge;
+  summary.textContent = presentation.summary;
   title.textContent = presentation.title;
 
   if (presentation.mode === 'live' && entry.lastRefreshUtc) {
@@ -74,6 +95,16 @@ function renderConnectionBanner(presentation, entry) {
   } else {
     text.textContent = presentation.text;
   }
+
+  const storageKey = connectionBannerStorageKey(entry, presentation);
+  const isCollapsed = window.localStorage.getItem(storageKey) !== 'expanded';
+  setConnectionBannerCollapsed(isCollapsed);
+
+  toggle.onclick = () => {
+    const nextCollapsed = toggle.getAttribute('aria-expanded') === 'true';
+    setConnectionBannerCollapsed(nextCollapsed);
+    window.localStorage.setItem(storageKey, nextCollapsed ? 'collapsed' : 'expanded');
+  };
 
   banner.hidden = false;
 }
